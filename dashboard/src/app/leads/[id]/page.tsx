@@ -1,6 +1,6 @@
 import { getAdmin } from '@/lib/supabase-admin';
-import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, fmtDate } from '@/lib/format';
-import { optOut } from './actions';
+import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, STAGE_ORDER, fmtDate } from '@/lib/format';
+import { optOut, updateStage, deleteContact } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +78,29 @@ export default async function LeadDetail({ params }: { params: { id: string } })
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      <div className="section">
+        <h3>Gestión del cliente</h3>
+        <div className="row2">
+          <div>
+            <p style={{ marginBottom: 8, color: 'var(--muted)' }}>Seguir con el proceso: cambia la etapa.</p>
+            <form action={updateStage.bind(null, c.id)} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select name="stage" defaultValue={c.stage} style={{ marginBottom: 0 }}>
+                {STAGE_ORDER.map((s) => (
+                  <option key={s} value={s}>{STAGE_LABELS[s]}</option>
+                ))}
+              </select>
+              <button type="submit">Guardar etapa</button>
+            </form>
+          </div>
+          <div>
+            <p style={{ marginBottom: 8, color: 'var(--muted)' }}>Borrar el trabajo inconcluso (no se puede deshacer).</p>
+            <form action={deleteContact.bind(null, c.id)}>
+              <button className="danger" type="submit">Eliminar cliente</button>
+            </form>
+          </div>
         </div>
       </div>
 
