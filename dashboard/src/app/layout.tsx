@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/leads">👥 Clientes</a>
               <a href="/products">📦 Productos</a>
               <a href="/sequences">🔁 Seguimientos</a>
+              <a href="/sistemas">🌐 Mis sistemas</a>
             </nav>
           </aside>
           <main className="main">{children}</main>
