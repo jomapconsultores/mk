@@ -35,7 +35,7 @@ align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:c
 <body><div class="box"><h1>marketing-map</h1>
 <p>✅ El servidor (API) está funcionando correctamente.</p>
 <p style="color:#94a3b8">Esto es el motor por detrás del sistema, no una página para visitar.</p>
-<p>Panel del equipo:<br><a href="https://marketing-map-dashboard.onrender.com">marketing-map-dashboard.onrender.com</a></p>
+<p>Panel del equipo:<br><a href="https://marketing-map.onrender.com">marketing-map.onrender.com</a></p>
 <p>Página de captación:<br><a href="https://marketing-map-landing.onrender.com">marketing-map-landing.onrender.com</a></p>
 </div></body></html>`);
 });
