@@ -6,6 +6,17 @@ import { runEngineOnce } from './sequences/engine.js';
 
 const app = Fastify({ logger: true });
 
+// Tolerar cuerpos JSON vacios (el cron puede llegar sin body): se interpretan como {}.
+app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+  const text = (body as string)?.trim();
+  if (!text) return done(null, {});
+  try {
+    done(null, JSON.parse(text));
+  } catch (err) {
+    done(err as Error);
+  }
+});
+
 // CORS abierto para el endpoint publico de captura (formularios en cualquier dominio).
 app.addHook('onRequest', async (req, reply) => {
   reply.header('Access-Control-Allow-Origin', '*');
