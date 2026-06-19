@@ -42,9 +42,10 @@ Marketing_MAP/
 - [x] Motor de secuencias de seguimiento (inscribe, respeta baja/horario, redacta con IA o plantilla)
 - [x] Panel de control (Next.js): tablero, clientes, conversaciones, productos, seguimientos
 - [x] Captación web: landing page + endpoint `/capture` (probado end-to-end con IA)
-- [ ] Integración Instagram / Facebook / Email / WhatsApp
-- [ ] Conector de analíticas de Metricool al panel (requiere plan Advanced)
-- [ ] Despliegue en producción (Render)
+- [x] Preparado para despliegue en Render (`render.yaml` + guía + cron de seguimiento)
+- [ ] Despliegue en vivo (subir a GitHub + aplicar blueprint) — ver [`docs/DESPLIEGUE_RENDER.md`](docs/DESPLIEGUE_RENDER.md)
+- [ ] Integración Instagram / Facebook / Email / WhatsApp (Fase 2)
+- [ ] Login del panel + roles (Fase 3)
 
 > Estrategia Fase 1: **Metricool atrae** (contenido + anuncios) → **landing** captura → **CRM + IA**.
 > Ver [`docs/METRICOOL_Y_LANDING.md`](docs/METRICOOL_Y_LANDING.md). WhatsApp queda para Fase 2.
