@@ -25,6 +25,21 @@ app.addHook('onRequest', async (req, reply) => {
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
 
+// Raiz: pagina informativa (el backend es una API, no un sitio web).
+app.get('/', async (_req, reply) => {
+  reply.type('text/html').send(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>marketing-map · API</title>
+<style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;
+align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}
+.box{max-width:480px;padding:32px}h1{color:#818cf8}a{color:#818cf8}</style></head>
+<body><div class="box"><h1>marketing-map</h1>
+<p>✅ El servidor (API) está funcionando correctamente.</p>
+<p style="color:#94a3b8">Esto es el motor por detrás del sistema, no una página para visitar.</p>
+<p>Panel del equipo:<br><a href="https://marketing-map-dashboard.onrender.com">marketing-map-dashboard.onrender.com</a></p>
+<p>Página de captación:<br><a href="https://marketing-map-landing.onrender.com">marketing-map-landing.onrender.com</a></p>
+</div></body></html>`);
+});
+
 // Salud
 app.get('/health', async () => ({ ok: true, service: 'marketing-map-backend' }));
 
