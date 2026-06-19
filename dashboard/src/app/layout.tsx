@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <div className="layout">
           <aside className="sidebar">
-            <h1>Marketing MAP</h1>
+            <h1>marketing-map</h1>
             <span className="tag">Panel de control</span>
             <nav className="nav">
               <a href="/">📊 Tablero</a>
