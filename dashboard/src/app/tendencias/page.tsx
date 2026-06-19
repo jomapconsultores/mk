@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { getTrends } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,7 @@ export default async function Tendencias() {
   const bySource = countBy(C, (c) => CHANNEL_LABEL[c.source_channel ?? 'desconocido'] ?? c.source_channel ?? 'Desconocido');
   const byProduct = countBy(C.filter((c) => c.interested_product_id), (c) => prodName[c.interested_product_id as string] ?? 'Otro');
   const byIntent = countBy((msgs ?? []).filter((m) => m.ai_intent), (m) => m.ai_intent as string);
+  const trends = await getTrends('EC');
 
   // Leads de los últimos 14 días
   const days: { d: string; n: number }[] = [];
@@ -108,6 +110,34 @@ export default async function Tendencias() {
       <div className="section">
         <h3>¿Qué piden los clientes? (intención detectada por la IA)</h3>
         <Bars rows={byIntent} empty="Aún no hay mensajes analizados." />
+      </div>
+
+      <div className="section">
+        <h3>🌎 Tendencias públicas en Ecuador (Google · hoy)</h3>
+        <p style={{ color: 'var(--muted)', marginBottom: 14, fontSize: 13 }}>
+          Lo que está buscando la gente ahora mismo. Úsalo como idea para tu contenido y campañas.
+          Datos públicos y agregados (no se rastrea a personas). Se actualiza cada hora.
+        </p>
+        {trends.length === 0 ? (
+          <p style={{ color: 'var(--muted)' }}>No se pudieron cargar las tendencias en este momento.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {trends.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontWeight: 700, color: 'var(--muted)', width: 22 }}>{i + 1}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{t.title}</div>
+                  {t.newsTitle && t.newsUrl && (
+                    <a href={t.newsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5 }}>
+                      {t.newsTitle}
+                    </a>
+                  )}
+                </div>
+                {t.traffic && <span className="badge" style={{ background: '#6366f1' }}>{t.traffic}</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <p style={{ color: 'var(--muted)', fontSize: 12 }}>
