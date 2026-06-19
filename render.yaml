@@ -1,0 +1,59 @@
+# Blueprint de Render para Marketing MAP.
+# En Render: New + → Blueprint → conecta este repo. Render crea los 3 servicios.
+# Las variables marcadas "sync: false" las pegas tú en el panel de Render (secretas).
+
+services:
+  # 1) Backend: webhooks, captura de leads, IA, motor de seguimiento (cron)
+  - type: web
+    name: marketing-map-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        value: https://pamplfrwwawfgvbzbndk.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-6
+      - key: CRON_SECRET
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+
+  # 2) Panel de control (Next.js) — uso interno del equipo
+  - type: web
+    name: marketing-map-dashboard
+    runtime: node
+    rootDir: dashboard
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx next start -p $PORT
+    envVars:
+      - key: SUPABASE_URL
+        value: https://pamplfrwwawfgvbzbndk.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
+  # 3) Landing page pública (sitio estático)
+  - type: web
+    name: marketing-map-landing
+    runtime: static
+    rootDir: landing
+    staticPublishPath: .
+    buildCommand: ""
+
+# NOTA: El motor de seguimiento NO usa un worker (el plan free de Render no los incluye).
+# En su lugar, un cron externo GRATUITO (cron-job.org) llama cada 10 min a:
+#   POST https://marketing-map-backend.onrender.com/cron/run-sequences
+#   con la cabecera:  x-cron-secret: <tu CRON_SECRET>
+# Eso dispara el seguimiento y mantiene el backend despierto.

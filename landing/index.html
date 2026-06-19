@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conoce nuestra oferta — déjanos tus datos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 20px; color: #1e293b;
+    }
+    .card {
+      background: #fff; border-radius: 20px; max-width: 460px; width: 100%;
+      padding: 36px 32px; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .logo { font-weight: 800; font-size: 20px; color: #4f46e5; margin-bottom: 18px; }
+    h1 { font-size: 26px; line-height: 1.25; margin-bottom: 10px; }
+    p.lead { color: #64748b; margin-bottom: 24px; font-size: 15px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+    input, select, textarea {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+      font-size: 15px; font-family: inherit; transition: border .15s;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4f46e5; }
+    button {
+      width: 100%; margin-top: 22px; padding: 14px; border: none; border-radius: 10px;
+      background: #4f46e5; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    }
+    button:hover { background: #4338ca; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .note { font-size: 12px; color: #94a3b8; margin-top: 14px; text-align: center; }
+    .ok { text-align: center; padding: 20px 0; }
+    .ok .check { font-size: 54px; }
+    .ok h2 { color: #16a34a; margin: 10px 0; }
+    .hidden { display: none; }
+    .benefits { list-style: none; margin: 16px 0 4px; }
+    .benefits li { padding: 4px 0; color: #475569; font-size: 14px; }
+    .benefits li::before { content: "✓ "; color: #16a34a; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="form-view">
+      <div class="logo">Marketing MAP</div>
+      <h1>Déjanos tus datos y te contactamos hoy mismo</h1>
+      <p class="lead">Cuéntanos qué necesitas y un asesor te atenderá enseguida. Sin compromiso.</p>
+      <ul class="benefits">
+        <li>Atención personalizada y rápida</li>
+        <li>Resolvemos tus dudas al instante</li>
+        <li>Ofertas exclusivas para nuevos clientes</li>
+      </ul>
+
+      <form id="lead-form">
+        <label for="name">Nombre *</label>
+        <input id="name" name="name" required placeholder="Tu nombre" />
+
+        <label for="phone">WhatsApp / Teléfono</label>
+        <input id="phone" name="phone" type="tel" placeholder="+593 99 999 9999" />
+
+        <label for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" placeholder="tucorreo@ejemplo.com" />
+
+        <label for="message">¿En qué te podemos ayudar?</label>
+        <textarea id="message" name="message" rows="3" placeholder="Me interesa..."></textarea>
+
+        <button type="submit" id="submit-btn">Quiero que me contacten</button>
+        <p class="note">Al enviar aceptas que te contactemos. Puedes pedir tu baja cuando quieras.</p>
+      </form>
+    </div>
+
+    <div id="ok-view" class="ok hidden">
+      <div class="check">✅</div>
+      <h2>¡Gracias!</h2>
+      <p class="lead">Recibimos tus datos. Te contactaremos muy pronto. 🙌</p>
+    </div>
+  </div>
+
+  <script>
+    // 👉 CAMBIA esto por la URL de tu backend ya desplegado (ej. en Render).
+    // En local: http://localhost:3000
+    const BACKEND_URL = "http://localhost:3000";
+
+    const form = document.getElementById("lead-form");
+    const btn = document.getElementById("submit-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+
+      const payload = {
+        name: form.name.value.trim(),
+        phone: form.phone.value.trim(),
+        email: form.email.value.trim(),
+        message: form.message.value.trim(),
+      };
+
+      if (!payload.phone && !payload.email) {
+        alert("Por favor déjanos al menos tu WhatsApp o tu correo.");
+        btn.disabled = false;
+        btn.textContent = "Quiero que me contacten";
+        return;
+      }
+
+      try {
+        const res = await fetch(BACKEND_URL + "/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("respuesta " + res.status);
+        document.getElementById("form-view").classList.add("hidden");
+        document.getElementById("ok-view").classList.remove("hidden");
+      } catch (err) {
+        alert("Hubo un problema al enviar. Inténtalo de nuevo en un momento.");
+        btn.disabled = false;
+        btn.textContent = "Quiero que me contacten";
+      }
+    });
+  </script>
+</body>
+</html>
