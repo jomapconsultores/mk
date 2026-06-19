@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/products', ico: '📦', label: 'Productos' },
   { href: '/sequences', ico: '🔁', label: 'Seguimientos' },
   { href: '/import', ico: '📥', label: 'Importar' },
+  { href: '/audiencias', ico: '🎯', label: 'Audiencias' },
   { href: '/sistemas', ico: '🌐', label: 'Mis sistemas' },
 ];
 
