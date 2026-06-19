@@ -49,7 +49,9 @@ export default async function LeadDetail({ params }: { params: { id: string } })
         <div className="section">
           <h3>Datos</h3>
           <p style={{ lineHeight: 1.9 }}>
-            <strong>Teléfono:</strong> {c.phone || '—'}<br />
+            <strong>Móvil:</strong> {c.phone || '—'}<br />
+            {c.phone_home ? <><strong>Casa:</strong> {c.phone_home}<br /></> : null}
+            {c.phone_work ? <><strong>Trabajo:</strong> {c.phone_work}<br /></> : null}
             <strong>Email:</strong> {c.email || '—'}<br />
             <strong>Canal de origen:</strong> {c.source_channel || '—'}<br />
             <strong>Creado:</strong> {fmtDate(c.created_at)}<br />

@@ -72,8 +72,12 @@
           <input id="email" name="email" type="email" placeholder="tucorreo@ejemplo.com" />
           <label for="message">¿En qué te podemos ayudar?</label>
           <textarea id="message" name="message" rows="3" placeholder="Cuéntanos brevemente..."></textarea>
+          <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:400;margin-top:6px;color:#475569;cursor:pointer">
+            <input type="checkbox" id="consent" required style="width:auto;margin-top:3px" />
+            <span>Autorizo que me contacten y acepto la <a href="politica.html" target="_blank">política de privacidad</a>. Puedo pedir mi baja cuando quiera.</span>
+          </label>
           <button type="submit" id="submit-btn">Quiero que me contacten →</button>
-          <p class="note">🔒 Tus datos están seguros. Puedes pedir tu baja cuando quieras.</p>
+          <p class="note">🔒 Tus datos se tratan conforme a la Ley de Protección de Datos (LOPDP).</p>
         </form>
       </div>
       <div id="ok-view" class="card ok hidden">

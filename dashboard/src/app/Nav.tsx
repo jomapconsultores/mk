@@ -7,6 +7,7 @@ const LINKS = [
   { href: '/leads', ico: '👥', label: 'Clientes' },
   { href: '/products', ico: '📦', label: 'Productos' },
   { href: '/sequences', ico: '🔁', label: 'Seguimientos' },
+  { href: '/import', ico: '📥', label: 'Importar' },
   { href: '/sistemas', ico: '🌐', label: 'Mis sistemas' },
 ];
 
