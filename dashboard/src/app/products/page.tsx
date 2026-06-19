@@ -62,11 +62,14 @@ export default async function ProductsPage() {
                 <td>{money(p.price, p.currency)}</td>
                 <td>{p.is_active ? '✅ Activo' : '⏸️ Inactivo'}</td>
                 <td>
-                  <form action={toggleProduct.bind(null, p.id, !p.is_active)}>
-                    <button type="submit" style={{ background: p.is_active ? '#475569' : '#22c55e' }}>
-                      {p.is_active ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </form>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <a href={`/products/${p.id}`} className="badge" style={{ background: '#6366f1' }}>Editar</a>
+                    <form action={toggleProduct.bind(null, p.id, !p.is_active)}>
+                      <button type="submit" style={{ background: p.is_active ? '#475569' : '#22c55e' }}>
+                        {p.is_active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
