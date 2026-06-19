@@ -3,26 +3,30 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getAdmin } from '@/lib/supabase-admin';
-import { SESSION_COOKIE, signSession } from '@/lib/auth';
+import { SESSION_COOKIE, signSession, verifyPassword } from '@/lib/auth';
 
-/** Inicia sesión: valida email registrado + contraseña compartida del equipo. */
+/** Inicia sesión: valida email registrado y su contraseña (propia o, si no tiene, la compartida). */
 export async function login(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
 
-  if (password !== (process.env.DASHBOARD_PASSWORD ?? '')) {
-    redirect('/login?error=1');
-  }
-
   const db = getAdmin();
   const { data } = await db
     .from('users')
-    .select('email, is_active')
+    .select('email, is_active, password_hash')
     .eq('email', email)
     .maybeSingle();
 
   if (!data || !data.is_active) {
     redirect('/login?error=2');
+  }
+
+  // Contraseña propia del usuario si la tiene; si no, la contraseña compartida del equipo.
+  const ok = data.password_hash
+    ? await verifyPassword(password, data.password_hash)
+    : password === (process.env.DASHBOARD_PASSWORD ?? '');
+  if (!ok) {
+    redirect('/login?error=1');
   }
 
   const token = await signSession(email, process.env.SESSION_SECRET ?? '');
