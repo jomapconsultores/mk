@@ -387,6 +387,7 @@ export default function LandingPage() {
               <a href="#como-funciona">Cómo funciona</a>
               <a href="#beneficios">Beneficios</a>
               <a href="#contacto">Contacto</a>
+              <a href="/login" style={{ color: 'var(--brand)', fontWeight: 600 }}>Ingresar al sistema →</a>
             </div>
             <a href="#contacto" className="btn btn-primary" style={{ fontSize: 14, padding: '11px 22px' }}>
               Solicitar demo gratuita
