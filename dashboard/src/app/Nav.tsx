@@ -5,8 +5,7 @@ import { usePathname } from 'next/navigation';
 const LINKS = [
   { href: '/', ico: '📊', label: 'Tablero' },
   { href: '/leads', ico: '👥', label: 'Clientes' },
-  { href: '/import', ico: '📥', label: 'Importar clientes' },
-  { href: '/prospeccion', ico: '🔍', label: 'Prospección' },
+  { href: '/prospeccion', ico: '🔍', label: 'Prospección · Importar' },
   { href: '/captacion', ico: '🌐', label: 'Captación activa' },
   { href: '/sequences', ico: '🔁', label: 'Seguimientos' },
   { href: '/tendencias', ico: '📈', label: 'Tendencias' },
