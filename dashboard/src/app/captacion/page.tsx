@@ -152,7 +152,7 @@ function BuscarMercado() {
     // Agregar placeholder "buscando"
     setResultados(prev => {
       const next = [...prev];
-      next[idx] = { ...ciudad, encontrados: 0, guardados: 0, sourceId: '', estado: 'buscando' };
+      next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, sourceId: '', estado: 'buscando' };
       return next;
     });
 
@@ -177,7 +177,7 @@ function BuscarMercado() {
 
       setResultados(prev => {
         const next = [...prev];
-        next[idx] = { ...ciudad, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' };
+        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' };
         return next;
       });
 
@@ -188,7 +188,7 @@ function BuscarMercado() {
     } catch (e: any) {
       setResultados(prev => {
         const next = [...prev];
-        next[idx] = { ...ciudad, encontrados: 0, guardados: 0, sourceId: '', estado: 'error', error: e.message };
+        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, sourceId: '', estado: 'error', error: e.message };
         return next;
       });
       await new Promise(r => setTimeout(r, 1000));
@@ -220,7 +220,7 @@ function BuscarMercado() {
       queryMapsRef.current = m.query_maps_principal;
 
       // Primer resultado ya viene en la respuesta inicial (Cuenca)
-      setResultados([{ ...CIUDADES[0], encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' }]);
+      setResultados([{ ...CIUDADES[0], ciudad: CIUDADES[0].nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' }]);
       setTotalGuardados(d.guardados ?? 0);
       setEstado('buscando');
 
