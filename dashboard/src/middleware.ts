@@ -4,8 +4,8 @@ import { SESSION_COOKIE, verifySession } from '@/lib/auth';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Rutas públicas (login y assets ya se excluyen en el matcher).
-  if (pathname.startsWith('/login')) return NextResponse.next();
+  // Rutas públicas (login, landing y assets ya se excluyen en el matcher).
+  if (pathname === '/' || pathname.startsWith('/login')) return NextResponse.next();
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const email = await verifySession(token, process.env.SESSION_SECRET ?? '');
