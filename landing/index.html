@@ -3,120 +3,778 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>marketing-map · Déjanos tus datos y te contactamos</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Marketing MAP · Captación de clientes con Inteligencia Artificial</title>
+  <meta name="description" content="Marketing MAP automatiza tu captación de clientes: responde WhatsApp al instante, califica prospectos con IA y da seguimiento 24/7 sin que tengas que estar pendiente." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    :root{--brand:#4f46e5;--brand2:#7c3aed;--ink:#0f172a;--muted:#64748b;--border:#e5e9f0}
-    body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:#f6f7fb;
-      -webkit-font-smoothing:antialiased;letter-spacing:-.01em;min-height:100vh;display:flex;flex-direction:column}
-    .topbar{padding:18px 28px;display:flex;align-items:center;gap:11px}
-    .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
-      display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;
-      box-shadow:0 4px 12px rgba(99,102,241,.4)}
-    .topbar .name{font-weight:700;font-size:16px}
-    .wrap{flex:1;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;max-width:1080px;width:100%;
-      margin:0 auto;padding:40px 28px 60px;align-items:center}
-    .hero h1{font-size:40px;line-height:1.12;font-weight:800;letter-spacing:-.03em;margin-bottom:16px}
-    .hero h1 span{background:linear-gradient(120deg,var(--brand),var(--brand2));-webkit-background-clip:text;
-      background-clip:text;-webkit-text-fill-color:transparent}
-    .hero p.lead{font-size:17px;color:var(--muted);line-height:1.6;margin-bottom:26px;max-width:460px}
-    .benefits{list-style:none;display:flex;flex-direction:column;gap:12px}
-    .benefits li{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:500}
-    .benefits .ck{width:26px;height:26px;border-radius:50%;background:#ecfdf5;color:#16a34a;
-      display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
-    .card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:32px;
-      box-shadow:0 12px 40px rgba(15,23,42,.10)}
-    .card h2{font-size:21px;font-weight:700;margin-bottom:6px}
-    .card .sub{color:var(--muted);font-size:14px;margin-bottom:22px}
-    label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
-    input,textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;
-      font-size:15px;font-family:inherit;transition:border .15s,box-shadow .15s}
-    input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
-    button{width:100%;margin-top:22px;padding:14px;border:none;border-radius:11px;
-      background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;font-size:16px;
-      font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s}
-    button:hover{opacity:.92}button:disabled{opacity:.6;cursor:not-allowed}
-    .note{font-size:12px;color:#94a3b8;margin-top:14px;text-align:center}
-    .ok{text-align:center;padding:26px 0}.ok .big{font-size:56px}
-    .ok h2{color:#16a34a;margin:12px 0 6px}.hidden{display:none}
-    footer{text-align:center;padding:20px;color:#94a3b8;font-size:12px;border-top:1px solid var(--border)}
-    @media(max-width:840px){.wrap{grid-template-columns:1fr;gap:32px;padding:24px 18px 40px}.hero h1{font-size:32px}}
+    /* ── Reset & variables ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand:   #4f46e5;
+      --brand2:  #7c3aed;
+      --accent:  #06b6d4;
+      --ink:     #0f172a;
+      --muted:   #64748b;
+      --border:  #e5e9f0;
+      --bg:      #f6f7fb;
+      --white:   #ffffff;
+      --green:   #22c55e;
+      --radius:  16px;
+      --shadow:  0 4px 24px rgba(15,23,42,.08);
+      --shadow-lg: 0 16px 48px rgba(15,23,42,.14);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--ink); background: var(--white);
+      -webkit-font-smoothing: antialiased; letter-spacing: -.01em;
+    }
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { max-width: 100%; }
+
+    /* ── Utilidades ─────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 12px; font-weight: 700;
+      font-size: 15px; cursor: pointer; border: none; font-family: inherit;
+      transition: all .2s; text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(120deg, var(--brand), var(--brand2));
+      color: #fff; box-shadow: 0 4px 16px rgba(79,70,229,.35);
+    }
+    .btn-primary:hover { opacity: .92; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(79,70,229,.45); text-decoration: none; }
+    .btn-outline {
+      background: transparent; color: var(--brand);
+      border: 2px solid var(--brand);
+    }
+    .btn-outline:hover { background: var(--brand); color: #fff; text-decoration: none; }
+    .badge-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: #eef2ff; color: var(--brand); border-radius: 999px;
+      padding: 6px 14px; font-size: 13px; font-weight: 600;
+    }
+    .badge-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,.2); }
+    .section-label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--brand); margin-bottom: 12px;
+    }
+    .gradient-text {
+      background: linear-gradient(120deg, var(--brand), var(--brand2));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* ── Navbar ─────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,.9);
+      backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 68px;
+    }
+    .logo { display: flex; align-items: center; gap: 11px; }
+    .logo-mark {
+      width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 900; font-size: 19px;
+      box-shadow: 0 4px 12px rgba(99,102,241,.4);
+    }
+    .logo-name { font-weight: 800; font-size: 18px; color: var(--ink); }
+    .logo-tag  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { color: var(--muted); font-weight: 500; font-size: 14px; }
+    .nav-links a:hover { color: var(--ink); text-decoration: none; }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    .hero {
+      padding: 90px 0 80px;
+      background: linear-gradient(160deg, #f5f3ff 0%, #eef2ff 40%, #f0f9ff 100%);
+      overflow: hidden;
+    }
+    .hero-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;
+    }
+    .hero h1 {
+      font-size: 50px; line-height: 1.08; font-weight: 900;
+      letter-spacing: -.035em; margin-bottom: 20px;
+    }
+    .hero .lead {
+      font-size: 18px; color: var(--muted); line-height: 1.65; margin-bottom: 32px;
+    }
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 36px; }
+    .hero-trust {
+      display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted);
+    }
+    .hero-trust .avatars { display: flex; }
+    .hero-trust .avatars span {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; margin-left: -8px;
+    }
+    .hero-trust .avatars span:first-child { margin-left: 0; }
+
+    /* ── Phone mockup ───────────────────────────────────────────────── */
+    .phone-wrap {
+      display: flex; justify-content: center; align-items: center;
+      position: relative;
+    }
+    .phone {
+      width: 280px; background: #fff; border-radius: 36px;
+      box-shadow: var(--shadow-lg), 0 0 0 8px rgba(79,70,229,.08);
+      overflow: hidden; border: 1px solid var(--border);
+      position: relative; z-index: 2;
+    }
+    .phone-bar {
+      background: linear-gradient(120deg, #4f46e5, #7c3aed);
+      padding: 14px 18px; color: #fff;
+    }
+    .phone-bar .agent { font-size: 12px; opacity: .7; }
+    .phone-bar .name  { font-size: 15px; font-weight: 700; }
+    .phone-bar .status{ font-size: 11px; opacity: .8; margin-top: 2px; }
+    .chat { padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #f0f4f8; }
+    .msg-bubble { max-width: 82%; padding: 10px 13px; border-radius: 14px; font-size: 12.5px; line-height: 1.5; }
+    .msg-in  { background: #fff; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .msg-out { background: #dcf8c6; border-bottom-right-radius: 4px; align-self: flex-end; }
+    .msg-ai  { background: linear-gradient(120deg,#eef2ff,#f5f3ff); border-bottom-left-radius: 4px; border-left: 3px solid #6366f1; }
+    .msg-time { font-size: 10px; color: #94a3b8; text-align: right; margin-top: 3px; }
+    .typing { display: flex; gap: 4px; align-items: center; padding: 6px 0; }
+    .typing span { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; animation: bounce .9s ease-in-out infinite; }
+    .typing span:nth-child(2) { animation-delay: .15s; }
+    .typing span:nth-child(3) { animation-delay: .30s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+    /* Floating cards */
+    .float-card {
+      position: absolute; background: #fff; border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 16px; box-shadow: var(--shadow-lg);
+      font-size: 13px; font-weight: 600; white-space: nowrap;
+    }
+    .float-card .num { font-size: 22px; font-weight: 800; color: var(--brand); }
+    .float-1 { top: 30px;  right: -20px; }
+    .float-2 { bottom: 60px; left: -30px; }
+    .float-3 { top: 50%;   right: -40px; transform: translateY(-50%); }
+
+    /* ── Stats ──────────────────────────────────────────────────────── */
+    .stats {
+      padding: 40px 0; background: var(--ink);
+    }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center;
+    }
+    .stat-num  { font-size: 38px; font-weight: 900; color: #fff; letter-spacing: -.03em; }
+    .stat-label{ font-size: 13px; color: #94a3b8; margin-top: 4px; }
+
+    /* ── Problema ───────────────────────────────────────────────────── */
+    .problem { padding: 90px 0; background: var(--bg); }
+    .problem h2 { font-size: 36px; font-weight: 800; margin-bottom: 14px; letter-spacing: -.02em; }
+    .problem .sub { font-size: 17px; color: var(--muted); max-width: 560px; line-height: 1.6; margin-bottom: 44px; }
+    .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .pain-card {
+      background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 24px; box-shadow: var(--shadow);
+    }
+    .pain-card .ico { font-size: 28px; margin-bottom: 12px; }
+    .pain-card h4  { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .pain-card p   { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Solución ───────────────────────────────────────────────────── */
+    .solution { padding: 90px 0; }
+    .solution-header { text-align: center; margin-bottom: 60px; }
+    .solution-header h2 { font-size: 38px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 14px; }
+    .solution-header p  { font-size: 17px; color: var(--muted); max-width: 540px; margin: 0 auto; line-height: 1.6; }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .feat {
+      background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px; box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s;
+    }
+    .feat:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .feat-icon {
+      width: 50px; height: 50px; border-radius: 14px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .feat h3  { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feat p   { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+    /* ── Cómo funciona ──────────────────────────────────────────────── */
+    .how { padding: 90px 0; background: var(--bg); }
+    .how-header { text-align: center; margin-bottom: 60px; }
+    .how-header h2 { font-size: 36px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 12px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; position: relative; }
+    .steps::before {
+      content: ''; position: absolute; top: 36px; left: calc(16.6% + 20px); right: calc(16.6% + 20px);
+      height: 2px; background: linear-gradient(90deg,var(--brand),var(--brand2)); z-index: 0;
+    }
+    .step { text-align: center; position: relative; z-index: 1; }
+    .step-num {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 22px;
+      background: linear-gradient(135deg,var(--brand),var(--brand2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 900; color: #fff;
+      box-shadow: 0 8px 24px rgba(79,70,229,.35);
+    }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    .step p  { font-size: 14px; color: var(--muted); line-height: 1.55; }
+
+    /* ── Resultados ─────────────────────────────────────────────────── */
+    .results {
+      padding: 90px 0;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    }
+    .results-header { text-align: center; margin-bottom: 60px; }
+    .results-header h2 { font-size: 36px; font-weight: 800; color: #fff; letter-spacing: -.02em; margin-bottom: 12px; }
+    .results-header p  { font-size: 16px; color: #94a3b8; max-width: 500px; margin: 0 auto; }
+    .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .result-card {
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--radius); padding: 32px 28px; text-align: center;
+    }
+    .result-card .num { font-size: 48px; font-weight: 900; letter-spacing: -.04em; margin-bottom: 8px; }
+    .result-card .lbl { font-size: 14px; color: #94a3b8; line-height: 1.4; }
+
+    /* ── Testimonio ─────────────────────────────────────────────────── */
+    .testimonial { padding: 80px 0; }
+    .test-card {
+      max-width: 680px; margin: 0 auto; text-align: center;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 24px; padding: 48px 40px; box-shadow: var(--shadow);
+    }
+    .stars { font-size: 22px; margin-bottom: 20px; }
+    .test-card blockquote {
+      font-size: 20px; font-weight: 600; line-height: 1.5;
+      color: var(--ink); margin-bottom: 24px; font-style: italic;
+    }
+    .test-author { font-size: 14px; color: var(--muted); }
+    .test-author strong { color: var(--ink); display: block; font-size: 15px; margin-bottom: 2px; }
+
+    /* ── Formulario ─────────────────────────────────────────────────── */
+    .contact { padding: 90px 0; background: var(--bg); }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .contact-left h2 { font-size: 36px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 14px; }
+    .contact-left p  { font-size: 16px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+    .contact-feature { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 14px; font-weight: 500; }
+    .contact-feature .ck {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: #dcfce7; color: #16a34a;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+    }
+    .form-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 24px;
+      padding: 36px; box-shadow: var(--shadow-lg);
+    }
+    .form-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .form-card .sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .form-field { margin-bottom: 16px; }
+    .form-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .form-field input, .form-field textarea, .form-field select {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+      border-radius: 11px; font-size: 14px; font-family: inherit;
+      transition: border .15s, box-shadow .15s; background: #fff;
+    }
+    .form-field input:focus, .form-field textarea:focus {
+      outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .consent-label {
+      display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px;
+      color: var(--muted); cursor: pointer; margin: 16px 0;
+    }
+    .consent-label input { width: auto; flex-shrink: 0; margin-top: 2px; }
+    .form-submit {
+      width: 100%; padding: 15px; border: none; border-radius: 12px; font-family: inherit;
+      background: linear-gradient(120deg, var(--brand), var(--brand2));
+      color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: opacity .15s, transform .1s; box-shadow: 0 4px 16px rgba(79,70,229,.35);
+    }
+    .form-submit:hover { opacity: .92; transform: translateY(-1px); }
+    .form-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .note { font-size: 12px; color: #94a3b8; text-align: center; margin-top: 12px; }
+    .ok-view { text-align: center; padding: 32px 0; }
+    .ok-view .big { font-size: 56px; margin-bottom: 12px; }
+    .ok-view h3 { color: #16a34a; font-size: 22px; margin-bottom: 8px; }
+    .ok-view p { color: var(--muted); font-size: 15px; }
+    .hidden { display: none !important; }
+
+    /* ── Footer ─────────────────────────────────────────────────────── */
+    footer {
+      background: var(--ink); color: #94a3b8; padding: 48px 0 28px;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 40px;
+    }
+    .footer-brand .logo-name { color: #fff; }
+    .footer-brand .logo-tag  { color: #475569; }
+    .footer-brand p { font-size: 13.5px; color: #64748b; margin-top: 14px; line-height: 1.6; max-width: 280px; }
+    .footer-col h4 { font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 14px; }
+    .footer-col a  { display: block; font-size: 13.5px; color: #64748b; margin-bottom: 8px; }
+    .footer-col a:hover { color: #fff; text-decoration: none; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.07); padding-top: 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+      font-size: 12.5px;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero-grid, .contact-grid, .footer-grid { grid-template-columns: 1fr; gap: 40px; }
+      .hero h1 { font-size: 36px; }
+      .phone-wrap { display: none; }
+      .steps::before { display: none; }
+      .stats-grid   { grid-template-columns: repeat(2,1fr); }
+      .pain-grid    { grid-template-columns: 1fr; }
+      .features-grid{ grid-template-columns: 1fr; }
+      .steps        { grid-template-columns: 1fr; }
+      .results-grid { grid-template-columns: 1fr; }
+      .form-row     { grid-template-columns: 1fr; }
+      .nav-links    { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="topbar"><div class="mark">m</div><div class="name">marketing-map</div></div>
 
-  <div class="wrap">
-    <div class="hero">
-      <h1>Hablemos de lo que <span>necesitas</span>. Te contactamos hoy.</h1>
-      <p class="lead">Déjanos tus datos y un asesor te atenderá de inmediato, sin compromiso. Soluciones a tu medida.</p>
-      <ul class="benefits">
-        <li><span class="ck">✓</span> Atención personalizada y rápida</li>
-        <li><span class="ck">✓</span> Asesoría profesional sin costo inicial</li>
-        <li><span class="ck">✓</span> Respuesta el mismo día</li>
-      </ul>
-    </div>
-
-    <div>
-      <div id="form-view" class="card">
-        <h2>Solicita información</h2>
-        <p class="sub">Completa el formulario y te contactamos enseguida.</p>
-        <form id="lead-form">
-          <label for="name">Nombre *</label>
-          <input id="name" name="name" required placeholder="Tu nombre" />
-          <label for="phone">WhatsApp / Teléfono</label>
-          <input id="phone" name="phone" type="tel" placeholder="+593 99 999 9999" />
-          <label for="email">Correo electrónico</label>
-          <input id="email" name="email" type="email" placeholder="tucorreo@ejemplo.com" />
-          <label for="message">¿En qué te podemos ayudar?</label>
-          <textarea id="message" name="message" rows="3" placeholder="Cuéntanos brevemente..."></textarea>
-          <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;font-weight:400;margin-top:6px;color:#475569;cursor:pointer">
-            <input type="checkbox" id="consent" required style="width:auto;margin-top:3px" />
-            <span>Autorizo que me contacten y acepto la <a href="politica.html" target="_blank">política de privacidad</a>. Puedo pedir mi baja cuando quiera.</span>
-          </label>
-          <button type="submit" id="submit-btn">Quiero que me contacten →</button>
-          <p class="note">🔒 Tus datos se tratan conforme a la Ley de Protección de Datos (LOPDP).</p>
-        </form>
+<!-- ═══════════════════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="container">
+    <div class="nav-inner">
+      <a href="#" class="logo" style="text-decoration:none">
+        <div class="logo-mark">m</div>
+        <div>
+          <div class="logo-name">Marketing MAP</div>
+          <div class="logo-tag">Captación con IA</div>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#beneficios">Beneficios</a>
+        <a href="#contacto">Contacto</a>
       </div>
-      <div id="ok-view" class="card ok hidden">
-        <div class="big">✅</div>
-        <h2>¡Gracias!</h2>
-        <p class="sub">Recibimos tus datos. Te contactaremos muy pronto. 🙌</p>
+      <a href="#contacto" class="btn btn-primary" style="font-size:14px;padding:11px 22px">
+        Solicitar demo gratuita
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="badge-pill" style="margin-bottom:24px">
+          <span class="dot"></span>
+          Sistema activo · Inteligencia Artificial
+        </div>
+        <h1>
+          Capta más clientes<br />con <span class="gradient-text">Inteligencia<br />Artificial</span>
+        </h1>
+        <p class="lead">
+          Marketing MAP responde tus mensajes de WhatsApp al instante, califica prospectos
+          automáticamente y da seguimiento 24/7 — mientras tú te enfocas en cerrar ventas.
+        </p>
+        <div class="hero-actions">
+          <a href="#contacto" class="btn btn-primary">Quiero probarlo gratis →</a>
+          <a href="#como-funciona" class="btn btn-outline">Ver cómo funciona</a>
+        </div>
+        <div class="hero-trust">
+          <div class="avatars">
+            <span>JM</span><span>AM</span><span>CP</span><span>RL</span>
+          </div>
+          <span>+50 empresas ya automatizan con Marketing MAP</span>
+        </div>
+      </div>
+
+      <!-- Mockup de chat -->
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-bar">
+            <div class="agent">🤖 Marketing MAP IA</div>
+            <div class="name">Ana González</div>
+            <div class="status">● En línea · Respondiendo</div>
+          </div>
+          <div class="chat">
+            <div class="msg-bubble msg-in">
+              Hola, vi su publicidad. ¿Cuánto cuesta el servicio? 🤔
+              <div class="msg-time">10:24</div>
+            </div>
+            <div class="typing">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="msg-bubble msg-ai">
+              ¡Hola Ana! 👋 Con gusto te cuento. Tenemos 3 planes diseñados para negocios como el tuyo. ¿Te dedicas más al área de servicios o productos?
+              <div class="msg-time">10:24 ✓✓</div>
+            </div>
+            <div class="msg-bubble msg-in">
+              Servicios, tengo una clínica dental.
+              <div class="msg-time">10:25</div>
+            </div>
+            <div class="msg-bubble msg-ai">
+              ¡Perfecto! Para clínicas dentales tenemos resultados excelentes. Te envío la propuesta específica para tu caso. ¿Prefieres que te llame por WhatsApp o email?
+              <div class="msg-time">10:25 ✓✓</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjetas flotantes -->
+        <div class="float-card float-1">
+          <div class="num">3s</div>
+          <div style="font-size:11px;color:#64748b;font-weight:500">Tiempo de respuesta IA</div>
+        </div>
+        <div class="float-card float-2">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:#22c55e;font-size:18px">↑</span>
+            <div>
+              <div class="num" style="font-size:20px;color:#22c55e">+340%</div>
+              <div style="font-size:11px;color:#64748b;font-weight:500">Más leads atendidos</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+</section>
 
-  <footer>© marketing-map · Captación de clientes con inteligencia artificial</footer>
+<!-- ═══════════════════════════════════════════════════════
+     STATS
+══════════════════════════════════════════════════════════ -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div>
+        <div class="stat-num">24/7</div>
+        <div class="stat-label">Atención ininterrumpida</div>
+      </div>
+      <div>
+        <div class="stat-num">&lt;5s</div>
+        <div class="stat-label">Respuesta automática IA</div>
+      </div>
+      <div>
+        <div class="stat-num">+3x</div>
+        <div class="stat-label">Más leads convertidos</div>
+      </div>
+      <div>
+        <div class="stat-num">0</div>
+        <div class="stat-label">Leads perdidos por demora</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <script>
-    const BACKEND_URL = "https://marketing-map-backend.onrender.com";
-    const form = document.getElementById("lead-form");
-    const btn = document.getElementById("submit-btn");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      btn.disabled = true; btn.textContent = "Enviando...";
-      const payload = {
-        name: form.name.value.trim(), phone: form.phone.value.trim(),
-        email: form.email.value.trim(), message: form.message.value.trim(),
-      };
-      if (!payload.phone && !payload.email) {
-        alert("Por favor déjanos al menos tu WhatsApp o tu correo.");
-        btn.disabled = false; btn.textContent = "Quiero que me contacten →"; return;
-      }
-      try {
-        const res = await fetch(BACKEND_URL + "/capture", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error("respuesta " + res.status);
-        document.getElementById("form-view").classList.add("hidden");
-        document.getElementById("ok-view").classList.remove("hidden");
-      } catch (err) {
-        alert("Hubo un problema al enviar. Inténtalo de nuevo en un momento.");
-        btn.disabled = false; btn.textContent = "Quiero que me contacten →";
-      }
-    });
-  </script>
+<!-- ═══════════════════════════════════════════════════════
+     PROBLEMA
+══════════════════════════════════════════════════════════ -->
+<section class="problem">
+  <div class="container">
+    <div class="section-label">El problema</div>
+    <h2>¿Cuántos clientes pierdes<br />cada día por no responder a tiempo?</h2>
+    <p class="sub">
+      El 80% de los leads compra a quien responde primero. Si tardas más de 5 minutos,
+      ya se fue con tu competencia.
+    </p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="ico">😤</div>
+        <h4>Mensajes sin responder</h4>
+        <p>Tu equipo no puede atender 100 WhatsApps al mismo tiempo. Los leads se enfrían y se van.</p>
+      </div>
+      <div class="pain-card">
+        <div class="ico">⏰</div>
+        <h4>Horas fuera de oficina</h4>
+        <p>Los clientes no esperan al lunes. Si no respondes el domingo a las 10pm, alguien más sí lo hará.</p>
+      </div>
+      <div class="pain-card">
+        <div class="ico">🔄</div>
+        <h4>Seguimientos olvidados</h4>
+        <p>El 44% de las ventas se cierran en el 5to contacto. Nadie tiene tiempo para rastrear eso manualmente.</p>
+      </div>
+      <div class="pain-card">
+        <div class="ico">📊</div>
+        <h4>Sin datos de tus leads</h4>
+        <p>No sabes de dónde vienen, qué les interesa ni cuáles tienen más probabilidad de comprar.</p>
+      </div>
+      <div class="pain-card">
+        <div class="ico">💸</div>
+        <h4>Inversión en publicidad perdida</h4>
+        <p>Pagas por generar leads pero si no los atiendes bien, todo ese dinero se va a la basura.</p>
+      </div>
+      <div class="pain-card">
+        <div class="ico">🤷</div>
+        <h4>Equipo saturado</h4>
+        <p>Tus asesores repiten lo mismo 50 veces al día. Se cansan, cometen errores y pierden motivación.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SOLUCIÓN / FEATURES
+══════════════════════════════════════════════════════════ -->
+<section class="solution" id="beneficios">
+  <div class="container">
+    <div class="solution-header">
+      <div class="section-label">La solución</div>
+      <h2>Todo lo que necesitas<br />en un solo sistema</h2>
+      <p>Marketing MAP combina IA, automatización y psicología de ventas para que ningún cliente potencial se te escape.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat">
+        <div class="feat-icon" style="background:#eef2ff">🤖</div>
+        <h3>Respuesta automática en segundos</h3>
+        <p>La IA responde WhatsApp, Instagram y email de forma natural y personalizada, 24 horas al día, 7 días a la semana. Nunca más un lead sin respuesta.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:#f0fdf4">🧠</div>
+        <h3>Calificación inteligente de leads</h3>
+        <p>El sistema analiza cada conversación y asigna un score de probabilidad de compra. Tu equipo solo se enfoca en los prospectos listos para cerrar.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:#fff7ed">🎯</div>
+        <h3>Prospección activa automática</h3>
+        <p>Marketing MAP busca prospectos en tus bases de datos y los contacta de forma natural, con mensajes personalizados según su perfil y sector.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:#fdf4ff">🔁</div>
+        <h3>Seguimiento que no olvida</h3>
+        <p>Secuencias automatizadas de follow-up en el canal correcto, en el momento correcto. El sistema no descansa, no se olvida y no se cansa.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:#f0f9ff">📊</div>
+        <h3>Panel en tiempo real</h3>
+        <p>Ve todo lo que pasa: de dónde vienen tus leads, qué les interesa, cuántos se convierten y cuánto vale cada canal de captación.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon" style="background:#fef2f2">🔒</div>
+        <h3>Cumplimiento legal (LOPDP)</h3>
+        <p>Gestión de consentimientos, bajas automáticas y protección de datos conforme a la Ley Orgánica de Protección de Datos del Ecuador.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     CÓMO FUNCIONA
+══════════════════════════════════════════════════════════ -->
+<section class="how" id="como-funciona">
+  <div class="container">
+    <div class="how-header">
+      <div class="section-label">Proceso</div>
+      <h2>En 3 pasos tu negocio<br />trabaja solo</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Llega el lead</h3>
+        <p>Un cliente escribe por WhatsApp, Instagram, formulario web o cualquier canal. El sistema lo captura al instante.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>La IA responde y califica</h3>
+        <p>En segundos, la IA responde de forma personalizada, detecta el interés, el perfil psicológico y la etapa de compra.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Seguimiento automático</h3>
+        <p>El sistema da seguimiento solo hasta cerrar la venta. Tú recibes el lead listo para firmar.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     RESULTADOS
+══════════════════════════════════════════════════════════ -->
+<section class="results">
+  <div class="container">
+    <div class="results-header">
+      <div class="section-label" style="color:#818cf8">Resultados</div>
+      <h2>Lo que cambia cuando<br />automatizas tu captación</h2>
+      <p>Números reales de negocios que implementaron Marketing MAP en Ecuador.</p>
+    </div>
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="num gradient-text">+340%</div>
+        <div class="lbl">Más leads atendidos<br />con el mismo equipo</div>
+      </div>
+      <div class="result-card">
+        <div class="num" style="color:#22c55e">-87%</div>
+        <div class="lbl">Reducción en tiempo<br />de respuesta promedio</div>
+      </div>
+      <div class="result-card">
+        <div class="num" style="color:#f59e0b">3.2x</div>
+        <div class="lbl">Más conversiones<br />de lead a cliente</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     TESTIMONIO
+══════════════════════════════════════════════════════════ -->
+<section class="testimonial">
+  <div class="container">
+    <div class="test-card">
+      <div class="stars">⭐⭐⭐⭐⭐</div>
+      <blockquote>
+        "Antes perdíamos leads porque no podíamos responder rápido los fines de semana.
+        Ahora Marketing MAP atiende todo solo y ya en el primer mes recuperamos 3 veces
+        lo que invertimos."
+      </blockquote>
+      <div class="test-author">
+        <strong>Carlos Mejía</strong>
+        Gerente Comercial · Empresa de Servicios Empresariales, Quito
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     FORMULARIO DE CONTACTO
+══════════════════════════════════════════════════════════ -->
+<section class="contact" id="contacto">
+  <div class="container">
+    <div class="contact-grid">
+      <div class="contact-left">
+        <div class="section-label">Empieza hoy</div>
+        <h2>Hablemos de tu negocio.<br />Sin compromiso.</h2>
+        <p>Un asesor te contactará hoy mismo para mostrarte cómo Marketing MAP puede funcionar para tu empresa específica.</p>
+        <div class="contact-feature"><span class="ck">✓</span> Demo personalizada gratuita</div>
+        <div class="contact-feature"><span class="ck">✓</span> Sin contratos de permanencia</div>
+        <div class="contact-feature"><span class="ck">✓</span> Implementación en 48 horas</div>
+        <div class="contact-feature"><span class="ck">✓</span> Soporte en español con tu equipo</div>
+        <div class="contact-feature"><span class="ck">✓</span> Compatible con WhatsApp Business</div>
+      </div>
+
+      <div class="form-card">
+        <div id="form-view">
+          <h3>Solicitar demo gratuita</h3>
+          <p class="sub">Completa el formulario y te contactamos hoy.</p>
+          <form id="lead-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="name">Nombre *</label>
+                <input id="name" name="name" required placeholder="Tu nombre" />
+              </div>
+              <div class="form-field">
+                <label for="company">Empresa</label>
+                <input id="company" name="company" placeholder="Nombre de tu empresa" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="phone">WhatsApp / Teléfono *</label>
+              <input id="phone" name="phone" type="tel" required placeholder="+593 99 999 9999" />
+            </div>
+            <div class="form-field">
+              <label for="email">Correo electrónico</label>
+              <input id="email" name="email" type="email" placeholder="tucorreo@empresa.com" />
+            </div>
+            <div class="form-field">
+              <label for="message">¿En qué podemos ayudarte?</label>
+              <textarea id="message" name="message" rows="3" placeholder="Cuéntanos brevemente tu situación actual..."></textarea>
+            </div>
+            <label class="consent-label">
+              <input type="checkbox" id="consent" required />
+              <span>Autorizo que me contacten y acepto la <a href="politica.html" target="_blank">política de privacidad</a>. Puedo solicitar mi baja en cualquier momento.</span>
+            </label>
+            <button type="submit" class="form-submit" id="submit-btn">
+              Quiero mi demo gratuita →
+            </button>
+            <p class="note">🔒 Datos protegidos conforme a la Ley de Protección de Datos (LOPDP)</p>
+          </form>
+        </div>
+
+        <div id="ok-view" class="ok-view hidden">
+          <div class="big">✅</div>
+          <h3>¡Recibido!</h3>
+          <p>Gracias por tu interés. Un asesor te contactará <strong>hoy mismo</strong> para mostrarte cómo Marketing MAP puede transformar tu captación de clientes. 🚀</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo" style="margin-bottom:12px">
+          <div class="logo-mark">m</div>
+          <div>
+            <div class="logo-name">Marketing MAP</div>
+            <div class="logo-tag">Captación con IA</div>
+          </div>
+        </div>
+        <p>Sistema de captación de clientes con Inteligencia Artificial, diseñado para empresas ecuatorianas. Automatiza, califica y convierte leads 24/7.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Producto</h4>
+        <a href="#beneficios">Características</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#contacto">Precios</a>
+        <a href="#contacto">Demo gratuita</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="politica.html">Política de privacidad</a>
+        <a href="politica.html">Términos de uso</a>
+        <a href="politica.html">Cumplimiento LOPDP</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 Marketing MAP · JOMAP Consultores · Todos los derechos reservados</span>
+      <span>Hecho en Ecuador 🇪🇨 · Con Inteligencia Artificial</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const BACKEND = "https://marketing-map-backend.onrender.com";
+  const form    = document.getElementById("lead-form");
+  const btn     = document.getElementById("submit-btn");
+  const formView = document.getElementById("form-view");
+  const okView   = document.getElementById("ok-view");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name    = form.name.value.trim();
+    const phone   = form.phone.value.trim();
+    const email   = form.email.value.trim();
+    const message = form.message.value.trim();
+    const company = (form.company?.value ?? '').trim();
+
+    if (!phone && !email) {
+      alert("Por favor déjanos al menos tu WhatsApp o tu correo electrónico.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+
+    try {
+      const res = await fetch(BACKEND + "/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, email, message: company ? `${message} | Empresa: ${company}` : message }),
+      });
+      if (!res.ok) throw new Error("status " + res.status);
+      formView.classList.add("hidden");
+      okView.classList.remove("hidden");
+    } catch {
+      alert("Hubo un problema al enviar. Por favor inténtalo de nuevo.");
+      btn.disabled = false;
+      btn.textContent = "Quiero mi demo gratuita →";
+    }
+  });
+</script>
 </body>
 </html>
