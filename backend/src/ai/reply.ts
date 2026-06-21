@@ -1,48 +1,82 @@
-import { anthropic, AI_MODEL } from './anthropic.js';
+import { llm } from './router.js';
+import { type PsychProfile, discToStyle, awarenessToMessage } from './psychology.js';
 
 /**
- * Genera una respuesta conversacional para "convencer" al cliente, con tono cercano,
- * basada en el catalogo y el historial. Nunca inventa precios que no esten en el brief.
+ * Genera la respuesta perfecta al cliente combinando:
+ *  - Psicología del consumidor (DISC + nivel de consciencia)
+ *  - Principios de influencia de Cialdini
+ *  - Copywriting de ventas (PAS, AIDA, storytelling)
+ *  - Tono natural latinoamericano, tuteo, sin presión
+ *
+ * El resultado: el cliente siente que lo entienden, confía, y avanza solo.
  */
 export async function generateReply(opts: {
   messageText: string;
   history?: string;
   contactName?: string | null;
-  salesContext: string;   // briefs de venta de productos relevantes
+  salesContext: string;
+  psychProfile?: PsychProfile;
+  stage?: string;
 }): Promise<string> {
-  const system = `Eres un asesor de ventas amable, honesto y cercano (tono latinoamericano, tuteo).
-Tu objetivo es ayudar al cliente y guiarlo a comprar, SIN presionar ni mentir.
-Reglas:
-- Responde corto y natural, como en un chat (1-4 frases).
-- Usa solo la informacion del contexto de ventas. Si no sabes un dato (precio, stock),
-  dilo y ofrece que un asesor humano lo confirme. NUNCA inventes precios.
-- Si el cliente muestra intencion de compra, propon el siguiente paso concreto.
-- Si el cliente pide dejar de recibir mensajes, confirma amablemente que sera dado de baja.
-- Escribe en el idioma del cliente.`;
 
-  const user = `Cliente: ${opts.contactName ?? 'desconocido'}
+  // ── Contexto psicológico ──────────────────────────────────────────────────
+  const psych = opts.psychProfile;
+  const discInstruction   = psych ? discToStyle(psych.disc)              : 'Sé cálido, cercano y natural.';
+  const awarenessInstruct = psych ? awarenessToMessage(psych.awareness)  : 'Entiende su situación antes de proponer.';
+  const objectionHint     = psych ? `Su objeción más probable es: "${psych.primary_objection}". Anticípala de forma natural si aparece.` : '';
+  const triggerHint       = psych ? `Frase disparadora ideal: "${psych.trigger_phrase}". Úsala o adáptala si es el momento.` : '';
+  const emotionalHint     = psych ? `Motor emocional: ${psych.emotional_driver}. Actívalo sutilmente.` : '';
+  const approachHint      = psych ? `Estrategia para esta respuesta: ${psych.approach}` : '';
+  const urgencyHint       = psych?.urgency === 'alta' ? 'El cliente está listo. Facilita el siguiente paso concreto ahora.' :
+                            psych?.urgency === 'media' ? 'Genera un poco más de deseo antes de cerrar.' :
+                            'Primero construye confianza y rapport.';
 
-Contexto de ventas (productos):
-${opts.salesContext || '(sin contexto)'}
+  const system = `Eres el mejor vendedor consultivo de América Latina. Combinas:
+• Psicología clínica (entiendes lo que el cliente siente y no dice)
+• Copywriting de ventas (PAS, AIDA, storytelling, prueba social)
+• Principios Cialdini (reciprocidad, prueba social, autoridad, escasez, simpatía, compromiso)
+• Técnica Feel-Felt-Found para objeciones
+• Future pacing: ayudas al cliente a verse ya con el beneficio
+• Rapport profundo: espejo verbal, validación emocional
 
-Historial reciente:
-${opts.history ?? '(sin historial)'}
+═══ ESTILO DE COMUNICACIÓN (DISC detectado) ═══
+${discInstruction}
 
-Mensaje del cliente:
+═══ NIVEL DE CONSCIENCIA ═══
+${awarenessInstruct}
+
+═══ PSICOLOGÍA DEL CLIENTE ═══
+${emotionalHint}
+${objectionHint}
+${triggerHint}
+${urgencyHint}
+
+═══ ESTRATEGIA DE ESTA RESPUESTA ═══
+${approachHint}
+
+═══ REGLAS DE ORO ═══
+1. Responde como en un chat real: corto, natural (1-4 líneas). NUNCA un ensayo.
+2. Valida PRIMERO emocionalmente antes de informar o proponer. El cliente debe sentirse escuchado.
+3. NUNCA inventes precios, stocks o datos. Si no lo sabes, di que un asesor lo confirma.
+4. NUNCA presiones ni uses urgencia falsa. La urgencia real la crea el propio cliente.
+5. Si hay intención de compra, propón UN solo paso concreto (no tres opciones).
+6. Usa su nombre si lo sabes. Crea sensación de conversación personal.
+7. Escribe en el idioma del cliente. Si mezcla, mezcla tú también.
+8. Si el cliente pide baja, confirma amablemente. Nunca ruegues.
+9. Termina siempre con una pregunta o propuesta que invite a continuar (sin presión).`;
+
+  const user = `Cliente: ${opts.contactName ?? 'desconocido'} | Etapa: ${opts.stage ?? 'new'}
+
+Contexto de nuestros productos (uso interno, no copiar literal):
+${opts.salesContext || '(sin productos configurados)'}
+
+Historial reciente de la conversación:
+${opts.history ?? '(primera interacción)'}
+
+Último mensaje del cliente:
 """${opts.messageText}"""
 
-Escribe SOLO el texto de tu respuesta al cliente.`;
+Escribe SOLO tu respuesta al cliente. Sin explicaciones, sin comillas, directo al mensaje.`;
 
-  const res = await anthropic.messages.create({
-    model: AI_MODEL,
-    max_tokens: 400,
-    system,
-    messages: [{ role: 'user', content: user }],
-  });
-
-  return res.content
-    .filter((b) => b.type === 'text')
-    .map((b) => (b as { text: string }).text)
-    .join('')
-    .trim();
+  return llm('reply', system, user, 450);
 }

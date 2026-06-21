@@ -1,5 +1,6 @@
 import { classifyMessage } from './ai/classify.js';
 import { generateReply } from './ai/reply.js';
+import { analyzePsychology } from './ai/psychology.js';
 import {
   applyClassification,
   findOrCreateContact,
@@ -11,8 +12,9 @@ import {
   type Channel,
 } from './repo.js';
 import { sendByChannel } from './channels/send.js';
+import { db } from './db.js';
+import { convertProspectToContact } from './prospecting/engine.js';
 
-/** Palabras que disparan baja inmediata aunque la IA no la detecte. */
 const STOP_WORDS = ['stop', 'baja', 'darme de baja', 'no me interesa', 'no escriban', 'unsubscribe'];
 
 function isStopWord(text: string): boolean {
@@ -20,13 +22,34 @@ function isStopWord(text: string): boolean {
   return STOP_WORDS.some((w) => t.includes(w));
 }
 
+/** Recupera los últimos N mensajes del contacto como texto plano para contexto. */
+async function getHistory(contactId: string, limit = 8): Promise<string> {
+  const { data } = await db
+    .from('messages')
+    .select('direction, body, created_at')
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (!data?.length) return '';
+
+  return data
+    .reverse()
+    .map((m) => `[${m.direction === 'inbound' ? 'Cliente' : 'Nosotros'}]: ${m.body}`)
+    .join('\n');
+}
+
 /**
- * EL CEREBRO: procesa un mensaje entrante de cualquier canal.
- *  1) identifica/crea contacto y conversacion
- *  2) guarda el mensaje
- *  3) clasifica con IA
- *  4) si pide baja -> opt-out y confirma (no sigue vendiendo)
- *  5) si autopilot -> genera y envia respuesta con IA
+ * CEREBRO PRINCIPAL — procesa un mensaje entrante de cualquier canal.
+ *
+ * Flujo:
+ *  1. Identificar / crear contacto
+ *  2. Detectar si es un prospecto que responde por primera vez → convertirlo a contacto
+ *  3. Clasificar con IA (etapa, intención, score)
+ *  4. Si pide baja → opt-out y se termina
+ *  5. Analizar perfil psicológico (DISC, consciencia, motor emocional)
+ *  6. Generar respuesta hiper-personalizada con IA
+ *  7. Enviar y guardar
  */
 export async function handleInboundMessage(opts: {
   channel: Channel;
@@ -42,14 +65,19 @@ export async function handleInboundMessage(opts: {
     phone: opts.channel === 'whatsapp' ? opts.externalId : undefined,
   });
 
+  // Si venía como prospecto de outreach, conviértelo automáticamente a contacto
+  if (opts.channel === 'whatsapp' && opts.externalId) {
+    await convertProspectToContact(opts.externalId, contact.id).catch(() => null);
+  }
+
   const conversationId = await getOrCreateConversation(contact.id, opts.channel);
 
-  // Clasificar
+  // Clasificar + historial en paralelo
   const { catalog, context } = await getSalesContext();
-  const classification = await classifyMessage({
-    messageText: opts.text,
-    productsCatalog: catalog,
-  });
+  const [classification, history] = await Promise.all([
+    classifyMessage({ messageText: opts.text, productsCatalog: catalog }),
+    getHistory(contact.id),
+  ]);
 
   await saveMessage({
     conversationId,
@@ -64,10 +92,10 @@ export async function handleInboundMessage(opts: {
 
   await applyClassification(contact.id, classification);
 
-  // --- BAJA AUTOMATICA (cumplimiento legal) ---
+  // ── BAJA AUTOMÁTICA (cumplimiento legal LOPDP) ───────────────────────────
   if (classification.intent === 'pedir_baja' || isStopWord(opts.text)) {
-    await optOutContact(contact.id, opts.channel, `Cliente solicito baja: "${opts.text}"`);
-    const bye = 'Listo, no volveras a recibir nuestros mensajes. Si algun dia nos necesitas, aqui estaremos. 🙏';
+    await optOutContact(contact.id, opts.channel, `Cliente solicitó baja: "${opts.text}"`);
+    const bye = 'Listo, no volverás a recibir nuestros mensajes. Si algún día nos necesitas, aquí estaremos. 🙏';
     await sendByChannel(opts.channel, opts.externalId, bye);
     await saveMessage({
       conversationId, contactId: contact.id, channel: opts.channel,
@@ -76,14 +104,28 @@ export async function handleInboundMessage(opts: {
     return;
   }
 
-  // Si el cliente ya estaba dado de baja, no le vendemos.
   if (contact.marketing_opted_out) return;
 
-  // --- AUTO-RESPUESTA con IA ---
+  // ── PERFIL PSICOLÓGICO ───────────────────────────────────────────────────
+  // Se analiza en segundo plano solo si hay suficiente historial o mensaje significativo
+  let psychProfile;
+  if (opts.text.length > 15 || history.length > 0) {
+    psychProfile = await analyzePsychology({
+      messages:      history + `\n[Cliente]: ${opts.text}`,
+      contactName:   contact.display_name,
+      stage:         contact.stage,
+      productContext: context.slice(0, 400),
+    }).catch(() => undefined);
+  }
+
+  // ── RESPUESTA HIPER-PERSONALIZADA ────────────────────────────────────────
   const reply = await generateReply({
-    messageText: opts.text,
-    contactName: contact.display_name,
+    messageText:  opts.text,
+    history,
+    contactName:  contact.display_name,
     salesContext: context,
+    psychProfile,
+    stage:        contact.stage,
   });
 
   await sendByChannel(opts.channel, opts.externalId, reply);
@@ -94,9 +136,7 @@ export async function handleInboundMessage(opts: {
 }
 
 /**
- * Captura un lead desde un formulario web (landing). Crea/actualiza el contacto,
- * guarda lo que escribio, lo clasifica con IA y lo deja listo para seguimiento.
- * Devuelve el id del contacto.
+ * Captura un lead desde formulario web.
  */
 export async function handleWebLead(opts: {
   name?: string;
@@ -105,9 +145,8 @@ export async function handleWebLead(opts: {
   message?: string;
   interestedProduct?: string;
 }): Promise<{ contactId: string }> {
-  // Identificador estable del lead web: email o telefono.
   const externalId = (opts.email || opts.phone || '').trim().toLowerCase();
-  if (!externalId) throw new Error('El formulario requiere email o telefono.');
+  if (!externalId) throw new Error('El formulario requiere email o teléfono.');
 
   const contact = await findOrCreateContact({
     channel: 'web',
@@ -120,7 +159,6 @@ export async function handleWebLead(opts: {
 
   const conversationId = await getOrCreateConversation(contact.id, 'web');
 
-  // Texto para registrar y clasificar.
   const text =
     opts.message?.trim() ||
     `Nuevo contacto desde formulario web.${opts.interestedProduct ? ` Interés: ${opts.interestedProduct}.` : ''}`;
@@ -141,7 +179,7 @@ export async function handleWebLead(opts: {
   await applyClassification(contact.id, classification);
 
   if (classification.intent === 'pedir_baja' || isStopWord(text)) {
-    await optOutContact(contact.id, 'web', `Lead pidio baja en el formulario: "${text}"`);
+    await optOutContact(contact.id, 'web', `Lead pidió baja en el formulario: "${text}"`);
   }
 
   return { contactId: contact.id };

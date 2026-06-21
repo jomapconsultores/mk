@@ -3,6 +3,9 @@ import { config } from './config.js';
 import { parseWhatsAppWebhook } from './channels/whatsapp.js';
 import { handleInboundMessage, handleWebLead } from './orchestrator.js';
 import { runEngineOnce } from './sequences/engine.js';
+import { importProspectsFromCsv, qualifyAllNew } from './prospecting/importer.js';
+import { scrapeGoogleMaps } from './prospecting/scrapers/google-maps.js';
+import { runProspectingOnce } from './prospecting/engine.js';
 
 const app = Fastify({ logger: true });
 
@@ -109,6 +112,93 @@ app.post('/webhooks/whatsapp', async (req, reply) => {
   } catch (err) {
     app.log.error({ err }, 'Error procesando webhook de WhatsApp');
   }
+});
+
+// ============================================================
+// PROSPECCIÓN ACTIVA
+// ============================================================
+
+// Cron: ejecutar motor de outreach (inscribir prospectos + enviar mensajes)
+app.post('/cron/run-prospecting', async (req, reply) => {
+  const secret = (req.headers['x-cron-secret'] as string) ?? '';
+  if (!config.cronSecret || secret !== config.cronSecret) {
+    return reply.code(401).send({ ok: false, error: 'No autorizado' });
+  }
+  try {
+    const result = await runProspectingOnce();
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /cron/run-prospecting');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Importar prospectos desde CSV (texto plano en el body)
+app.post('/prospecting/import-csv', async (req, reply) => {
+  const b = (req.body ?? {}) as { csv?: string; source_name?: string; qualify?: boolean };
+  if (!b.csv) return reply.code(400).send({ ok: false, error: 'Falta el campo csv' });
+  try {
+    const result = await importProspectsFromCsv({
+      csvText:      b.csv,
+      sourceName:   b.source_name ?? `Importación ${new Date().toLocaleDateString('es')}`,
+      qualifyWithAi: b.qualify !== false,
+    });
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    return reply.code(400).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Disparar calificación IA de prospectos pendientes
+app.post('/prospecting/qualify', async (req, reply) => {
+  const b = (req.body ?? {}) as { source_id?: string };
+  qualifyAllNew(b.source_id).catch((e) => app.log.error(e, 'Error calificando prospectos'));
+  return reply.code(202).send({ ok: true, message: 'Calificación iniciada en segundo plano' });
+});
+
+// Scraping de Google Maps
+app.post('/prospecting/scrape-google', async (req, reply) => {
+  const b = (req.body ?? {}) as { query?: string; max_results?: number; qualify?: boolean };
+  if (!b.query) return reply.code(400).send({ ok: false, error: 'Falta el campo query' });
+  try {
+    const result = await scrapeGoogleMaps({
+      query:         b.query,
+      maxResults:    b.max_results ?? 20,
+      qualifyWithAi: b.qualify !== false,
+    });
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Listar prospectos con filtros
+app.get('/prospecting/prospects', async (req, reply) => {
+  const q = (req.query ?? {}) as { status?: string; limit?: string };
+  const { data, error } = await (await import('./db.js')).db
+    .from('prospects')
+    .select('id, full_name, company, email, phone, industry, location, fit_score, status, ai_profile_summary, created_at')
+    .eq('status', q.status ?? 'qualified')
+    .order('fit_score', { ascending: false })
+    .limit(Number(q.limit ?? 100));
+  if (error) return reply.code(500).send({ ok: false, error: error.message });
+  return reply.code(200).send({ ok: true, prospects: data });
+});
+
+// Stats de prospección para el dashboard
+app.get('/prospecting/stats', async (_req, reply) => {
+  const { db: _db } = await import('./db.js');
+  const [byStatus, campaigns, recentSent] = await Promise.all([
+    _db.from('prospects').select('status').then(({ data }) => {
+      const counts: Record<string, number> = {};
+      for (const r of data ?? []) counts[r.status] = (counts[r.status] ?? 0) + 1;
+      return counts;
+    }),
+    _db.from('outreach_campaigns').select('id, name, is_active, daily_limit'),
+    _db.from('outreach_messages').select('id', { count: 'exact', head: true })
+       .gte('sent_at', new Date(Date.now() - 7 * 86400000).toISOString()),
+  ]);
+  return reply.code(200).send({ ok: true, by_status: byStatus, campaigns: campaigns.data, sent_last_7d: recentSent.count ?? 0 });
 });
 
 app

@@ -1,23 +1,18 @@
-import type Anthropic from '@anthropic-ai/sdk';
-import { anthropic, AI_MODEL } from './anthropic.js';
+import { llm } from './router.js';
 
 export interface Classification {
   stage: 'new' | 'engaged' | 'qualified' | 'negotiating' | 'customer' | 'lost';
   interest_level: 'low' | 'medium' | 'high';
-  lead_score: number;            // 0-100
-  intent: string;                // p.ej. 'pregunta_precio', 'quiere_comprar', 'pedir_baja'
+  lead_score: number;
+  intent: string;
   interested_product: string | null;
-  summary: string;               // resumen breve del cliente
+  summary: string;
 }
 
-/**
- * Clasifica un mensaje entrante usando Claude. Devuelve etapa, interés, score e intención.
- * Es robusto: si la IA falla, devuelve una clasificación neutra para no romper el flujo.
- */
 export async function classifyMessage(opts: {
   messageText: string;
-  history?: string;          // historial reciente de la conversación (opcional)
-  productsCatalog?: string;  // nombres de productos para que detecte el de interés
+  history?: string;
+  productsCatalog?: string;
 }): Promise<Classification> {
   const system = `Eres un analista de ventas. Clasificas mensajes de clientes potenciales.
 Devuelve SIEMPRE y SOLO un objeto JSON valido con estas claves exactas:
@@ -39,23 +34,10 @@ Mensaje nuevo del cliente:
 """${opts.messageText}"""`;
 
   try {
-    const res = await anthropic.messages.create({
-      model: AI_MODEL,
-      max_tokens: 512,
-      system,
-      messages: [{ role: 'user', content: user }],
-    });
+    const text = await llm('classify', system, user, 512);
 
-    const text = res.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-
-    // Extrae el primer bloque JSON aunque venga con texto alrededor.
     const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
     const parsed = JSON.parse(json) as Classification;
-
-    // Saneamiento mínimo
     parsed.lead_score = Math.max(0, Math.min(100, Math.round(parsed.lead_score ?? 0)));
     return parsed;
   } catch (err) {

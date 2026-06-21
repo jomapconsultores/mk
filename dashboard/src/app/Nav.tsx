@@ -9,6 +9,7 @@ const LINKS = [
   { href: '/sequences', ico: '🔁', label: 'Seguimientos' },
   { href: '/tendencias', ico: '📈', label: 'Tendencias' },
   { href: '/import', ico: '📥', label: 'Importar' },
+  { href: '/prospeccion', ico: '🔍', label: 'Prospección' },
   { href: '/audiencias', ico: '🎯', label: 'Audiencias' },
   { href: '/sistemas', ico: '🌐', label: 'Mis sistemas' },
 ];

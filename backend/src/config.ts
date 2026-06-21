@@ -15,6 +15,20 @@ export const config = {
     serviceKey: required('SUPABASE_SERVICE_KEY'),
   },
 
+  // Proveedores de IA — orden de preferencia: Mistral/Codestral → DeepSeek → Claude
+  mistral: {
+    apiKey:         process.env.MISTRAL_API_KEY    ?? '',
+    codestralApiKey: process.env.CODESTRAL_API_KEY ?? '',
+    model:          process.env.MISTRAL_MODEL      ?? 'mistral-small-latest',
+    codeModel:      process.env.CODESTRAL_MODEL    ?? 'codestral-latest',
+  },
+
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY  ?? '',
+    model:  process.env.DEEPSEEK_MODEL    ?? 'deepseek-chat',
+  },
+
+  // Claude se usa solo como último recurso
   anthropic: {
     apiKey: required('ANTHROPIC_API_KEY'),
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
@@ -24,6 +38,17 @@ export const config = {
     token: process.env.WHATSAPP_TOKEN ?? '',
     phoneId: process.env.WHATSAPP_PHONE_ID ?? '',
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? '',
+  },
+
+  // Email (Resend) — para outreach por correo
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY   ?? '',
+    fromAddress:  process.env.RESEND_FROM_EMAIL ?? '',
+  },
+
+  // Google Places — para scraping de negocios
+  google: {
+    placesApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
   },
 
   // Secreto para proteger el endpoint de cron que dispara el seguimiento.
