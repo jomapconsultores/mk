@@ -181,7 +181,7 @@ ${texto.slice(0, 8000)}`;
   const { prospectos } = JSON.parse(json) as { prospectos: ProspectFromText[] };
 
   // Crear fuente de prospecto
-  const { data: source } = await db
+  const { data: source, error: sourceError } = await db
     .from('prospect_sources')
     .insert({
       name:   `Análisis IA: ${fuente ?? 'texto manual'}`,
@@ -190,8 +190,9 @@ ${texto.slice(0, 8000)}`;
     })
     .select('id')
     .single();
+  if (!source) throw new Error(`Error creando fuente en BD: ${sourceError?.message ?? 'respuesta vacía'}`);
 
-  const sourceId = source!.id;
+  const sourceId = source.id;
   let guardados = 0;
 
   for (const p of prospectos) {

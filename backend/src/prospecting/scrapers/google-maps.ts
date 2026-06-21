@@ -27,7 +27,7 @@ export async function scrapeGoogleMaps(opts: {
   const maxResults = opts.maxResults ?? 20;
 
   // Crear fuente
-  const { data: source } = await db
+  const { data: source, error: sourceError } = await db
     .from('prospect_sources')
     .insert({
       name:   `Google Maps: ${opts.query}`,
@@ -36,7 +36,8 @@ export async function scrapeGoogleMaps(opts: {
     })
     .select('id')
     .single();
-  const sourceId = source!.id;
+  if (!source) throw new Error(`Error creando fuente en BD: ${sourceError?.message ?? 'respuesta vacía — tabla prospect_sources no existe o RLS bloqueó el insert'}`);
+  const sourceId = source.id;
 
   const places = await searchPlaces(opts.query, maxResults, apiKey);
   let saved = 0;

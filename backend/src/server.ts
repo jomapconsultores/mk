@@ -234,12 +234,13 @@ app.post('/prospecting/import-smart', async (req, reply) => {
     }
 
     // 3. Crear fuente
-    const { data: source } = await db
+    const { data: source, error: sourceError } = await db
       .from('prospect_sources')
       .insert({ name: sourceName, type: 'smart_import' })
       .select('id')
       .single();
-    const sourceId = source!.id;
+    if (!source) throw new Error(`Error creando fuente: ${sourceError?.message ?? 'respuesta vacía'}`);
+    const sourceId = source.id;
 
     // 4. Insertar con deduplicación por email o teléfono
     let imported   = 0;
