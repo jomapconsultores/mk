@@ -462,9 +462,9 @@ export async function buscarMercadoCiudad(params: {
   const sourceId = results.find((r) => r !== null)?.sourceId ?? '';
 
   return {
-    ciudad:    params.ciudad,
-    encontrados: result.found,
-    guardados:   result.saved,
+    ciudad:      params.ciudad,
+    encontrados: total.encontrados,
+    guardados:   total.guardados,
     sourceId,
     rama,
   };
