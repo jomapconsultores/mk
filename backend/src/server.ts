@@ -306,6 +306,92 @@ app.post('/prospecting/import-smart', async (req, reply) => {
   }
 });
 
+// ============================================================
+// CAPTACIÓN ACTIVA (motor IA de búsqueda de nuevos clientes)
+// ============================================================
+import {
+  generarEstrategia,
+  buscarEnMaps,
+  analizarTextoProspectos,
+  descubrirEmailsDeEmpresa,
+  generarCampanaDonacion,
+  getCaptacionStats,
+} from './captacion/search.js';
+
+// Generar estrategia de captación con IA
+app.post('/captacion/estrategia', async (req, reply) => {
+  const b = (req.body ?? {}) as Record<string, any>;
+  if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
+  try {
+    const estrategia = await generarEstrategia(b);
+    return reply.code(200).send({ ok: true, estrategia });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /captacion/estrategia');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Buscar negocios en Google Maps
+app.post('/captacion/buscar-maps', async (req, reply) => {
+  const b = (req.body ?? {}) as Record<string, any>;
+  if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
+  try {
+    const result = await buscarEnMaps(b);
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /captacion/buscar-maps');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Analizar texto pegado (LinkedIn, directorios, redes)
+app.post('/captacion/analizar-texto', async (req, reply) => {
+  const b = (req.body ?? {}) as { texto?: string; fuente?: string };
+  if (!b.texto) return reply.code(400).send({ ok: false, error: 'Falta el campo texto' });
+  try {
+    const result = await analizarTextoProspectos(b.texto, b.fuente);
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /captacion/analizar-texto');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Descubrir patrones de email de una empresa
+app.post('/captacion/emails-empresa', async (req, reply) => {
+  const b = (req.body ?? {}) as { empresa?: string; dominio?: string };
+  if (!b.empresa) return reply.code(400).send({ ok: false, error: 'Falta el campo empresa' });
+  try {
+    const patrones = await descubrirEmailsDeEmpresa(b.empresa, b.dominio);
+    return reply.code(200).send({ ok: true, patrones });
+  } catch (err) {
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Generar campaña de donaciones
+app.post('/captacion/donacion', async (req, reply) => {
+  const b = (req.body ?? {}) as Record<string, any>;
+  if (!b.causa) return reply.code(400).send({ ok: false, error: 'Falta el campo causa' });
+  try {
+    const campana = await generarCampanaDonacion(b);
+    return reply.code(200).send({ ok: true, campana });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /captacion/donacion');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Estadísticas del módulo de captación
+app.get('/captacion/stats', async (_req, reply) => {
+  try {
+    const stats = await getCaptacionStats();
+    return reply.code(200).send({ ok: true, ...stats });
+  } catch (err) {
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
 // Stats de prospección para el dashboard
 app.get('/prospecting/stats', async (_req, reply) => {
   const { db: _db } = await import('./db.js');
