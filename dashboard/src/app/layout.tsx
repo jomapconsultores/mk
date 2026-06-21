@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import Nav from './Nav';
+import GuidePanel from './GuidePanel';
 import { SESSION_COOKIE, verifySession } from '@/lib/auth';
 import { getAdmin } from '@/lib/supabase-admin';
 import { logout } from './login/actions';
@@ -62,6 +63,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </header>
               <main className="main">{children}</main>
             </div>
+
+            {/* Guía flotante de configuración — aparece en todas las páginas */}
+            <GuidePanel />
           </div>
         ) : (
           children
