@@ -422,8 +422,14 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
     });
 
     return reply.code(200).send({
-      ok: true,
-      ...resultado,
+      ok:              true,
+      ciudad:          resultado.ciudad,
+      encontrados:     resultado.encontrados,
+      guardados:       resultado.guardados,
+      sourceId:        resultado.sourceId,
+      rama:            resultado.rama.rama,
+      producto_objetivo: resultado.rama.producto_objetivo,
+      etiqueta_crm:    resultado.rama.etiqueta_crm,
       ...(mercado ? { mercado } : {}),
     });
   } catch (err) {

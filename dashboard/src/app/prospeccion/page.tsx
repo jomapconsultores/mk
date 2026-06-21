@@ -29,13 +29,14 @@ const STATUS_COLOR: Record<string, string> = {
 export default async function ProspeccionPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; status?: string; ok?: string; dup?: string; err?: string };
+  searchParams: { tab?: string; status?: string; rama?: string; ok?: string; dup?: string; err?: string };
 }) {
   const db = getAdmin();
   const activeTab = searchParams.tab ?? 'pipeline';
 
   // ── Pipeline data ────────────────────────────────────────────
   const filterStatus = searchParams.status ?? '';
+  const filterRama   = searchParams.rama   ?? '';
 
   const { data: allStatuses } = await db.from('prospects').select('status');
   const counts: Record<string, number> = {};
@@ -44,11 +45,16 @@ export default async function ProspeccionPage({
 
   let q = db
     .from('prospects')
-    .select('id, full_name, company, email, phone, industry, location, fit_score, status, ai_profile_summary, outreach_angle, created_at')
+    .select('id, full_name, company, email, phone, industry, location, fit_score, status, ai_profile_summary, outreach_angle, raw_data, created_at')
     .order('fit_score', { ascending: false })
     .limit(200);
   if (filterStatus) q = q.eq('status', filterStatus);
   const { data: prospects } = await q;
+
+  // Filtrar por rama en memoria (raw_data es JSONB — no se puede filtrar directamente con el cliente)
+  const prospectsFiltrados = filterRama
+    ? (prospects ?? []).filter((p: any) => p.raw_data?.etiqueta_crm === filterRama || p.raw_data?.rama === filterRama)
+    : (prospects ?? []);
 
   const { data: campaigns } = await db
     .from('outreach_campaigns')
@@ -153,12 +159,38 @@ export default async function ProspeccionPage({
             )}
           </div>
 
-          {/* Filtros */}
-          <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Filtros por estado */}
+          <div style={{ marginBottom: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Estado:</span>
             <a href="/prospeccion?tab=pipeline" className="badge" style={{ background: '#475569' }}>Todos</a>
             {Object.entries(STATUS_LABEL).map(([k, label]) => (
-              <a key={k} href={`/prospeccion?tab=pipeline&status=${k}`} className="badge" style={{ background: STATUS_COLOR[k] }}>{label}</a>
+              <a key={k} href={`/prospeccion?tab=pipeline&status=${k}${filterRama ? `&rama=${filterRama}` : ''}`} className="badge" style={{ background: STATUS_COLOR[k] }}>{label}</a>
             ))}
+          </div>
+
+          {/* Filtros por rama / producto */}
+          <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Rama:</span>
+            {[
+              { id: '',            label: 'Todas las ramas',   color: '#475569' },
+              { id: 'marketing',   label: '🌐 Marketing MAP',   color: '#4f46e5' },
+              { id: 'tributaria',  label: '📊 Tributaria',      color: '#0891b2' },
+              { id: 'educacion',   label: '🎓 Educación',       color: '#7c3aed' },
+              { id: 'idiomas',     label: '🇬🇧 Idiomas',        color: '#059669' },
+              { id: 'salud_mental',label: '🧠 Salud mental',    color: '#be185d' },
+              { id: 'firma_digital',label:'🔏 Firma digital',   color: '#b45309' },
+              { id: 'general',     label: '📁 General',         color: '#64748b' },
+            ].map(r => (
+              <a key={r.id} href={`/prospeccion?tab=pipeline${r.id ? `&rama=${r.id}` : ''}${filterStatus ? `&status=${filterStatus}` : ''}`}
+                className="badge"
+                style={{ background: filterRama === r.id || (!filterRama && !r.id) ? r.color : 'var(--panel-2)', color: filterRama === r.id || (!filterRama && !r.id) ? '#fff' : 'var(--muted)', border: '1px solid var(--border)' }}>
+                {r.label}
+              </a>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+            Mostrando <strong>{prospectsFiltrados.length}</strong> prospectos{filterRama ? ` en rama "${filterRama}"` : ''}
           </div>
 
           {/* Tabla de prospectos */}
@@ -169,12 +201,12 @@ export default async function ProspeccionPage({
                 <th>Empresa / Industria</th>
                 <th>Contacto</th>
                 <th>Score</th>
-                <th>Ángulo de entrada</th>
+                <th>Rama · Producto objetivo</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {(prospects ?? []).map((p) => (
+              {prospectsFiltrados.map((p: any) => (
                 <tr key={p.id}>
                   <td>
                     <strong>{p.full_name ?? '—'}</strong>
@@ -198,8 +230,19 @@ export default async function ProspeccionPage({
                       </>
                     ) : '—'}
                   </td>
-                  <td style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>
-                    {p.outreach_angle ?? '—'}
+                  <td style={{ fontSize: 11 }}>
+                    {p.raw_data?.rama ? (
+                      <div>
+                        <span className="badge" style={{ background: 'var(--panel-2)', color: 'var(--text)', border: '1px solid var(--border)', fontSize: 10 }}>
+                          {p.raw_data.rama}
+                        </span>
+                        {p.raw_data?.producto_objetivo && (
+                          <div style={{ color: 'var(--muted)', marginTop: 2 }}>{p.raw_data.producto_objetivo}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--muted)' }}>{p.outreach_angle ?? '—'}</span>
+                    )}
                   </td>
                   <td>
                     <span className="badge" style={{ background: STATUS_COLOR[p.status] ?? '#64748b' }}>
@@ -211,16 +254,11 @@ export default async function ProspeccionPage({
             </tbody>
           </table>
 
-          {(!prospects || prospects.length === 0) && (
+          {prospectsFiltrados.length === 0 && (
             <p className="empty">
               No hay prospectos en esta vista.{' '}
-              {!filterStatus && (
-                <>Usa{' '}
-                  <a href="/prospeccion?tab=ia">Importar con IA</a>{' '}
-                  o{' '}
-                  <a href="/prospeccion?tab=csv">Importar CSV</a>{' '}
-                  para agregar tu primera base de datos.
-                </>
+              {!filterStatus && !filterRama && (
+                <>Usa <a href="/captacion">Captación activa</a>, <a href="/prospeccion?tab=ia">Importar con IA</a> o <a href="/prospeccion?tab=csv">Importar CSV</a>.</>
               )}
             </p>
           )}

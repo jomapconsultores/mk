@@ -19,6 +19,7 @@ export async function scrapeGoogleMaps(opts: {
   query: string;       // p.ej. "restaurantes en Quito Ecuador"
   maxResults?: number;
   qualifyWithAi?: boolean;
+  extraData?: Record<string, unknown>; // metadata adicional que se guarda en raw_data (ej. rama, producto_objetivo)
 }): Promise<{ found: number; saved: number; sourceId: string }> {
   const apiKey = config.google.placesApiKey;
   if (!apiKey) throw new Error('Falta GOOGLE_PLACES_API_KEY en .env');
@@ -56,7 +57,7 @@ export async function scrapeGoogleMaps(opts: {
       location:   place.address    ?? null,
       industry:   (place.types ?? []).slice(0, 3).join(', ') || null,
       status:     'new',
-      raw_data:   { google_types: place.types, address: place.address },
+      raw_data:   { google_types: place.types, address: place.address, ...opts.extraData },
     });
 
     if (!error) saved++;

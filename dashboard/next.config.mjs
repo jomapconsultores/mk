@@ -5,8 +5,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '25mb',
     },
+    // @simplewebauthn/server es ESM puro — no bundlear en el servidor (Next.js 14)
+    serverComponentsExternalPackages: ['@simplewebauthn/server'],
   },
-  // @simplewebauthn/server es ESM puro — no bundlear en el servidor
-  serverExternalPackages: ['@simplewebauthn/server'],
 };
 export default nextConfig;

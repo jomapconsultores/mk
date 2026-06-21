@@ -328,6 +328,45 @@ export interface MercadoInferido {
   por_que_lo_necesitan: string;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Clasificador de rama — mapea producto → rama del ecosistema JOMAP
+// ─────────────────────────────────────────────────────────────
+
+export interface RamaClasificacion {
+  rama: string;           // rama del ecosistema
+  producto_objetivo: string; // producto a ofrecer
+  etiqueta_crm: string;   // tag para filtrar en el CRM
+}
+
+/**
+ * Determina a qué rama del ecosistema JOMAP pertenece el producto
+ * y qué producto específico es el más adecuado para ofrecer.
+ */
+export function clasificarPorRama(producto: string): RamaClasificacion {
+  const p = producto.toLowerCase();
+
+  if (/tribut|contab|fiscal|impuest|sri|declara|renta|iva|retenci|balances?|auditoria/.test(p))
+    return { rama: 'tributaria',   producto_objetivo: 'Tributos Web · CMAJ Asociados',        etiqueta_crm: 'tributaria' };
+
+  if (/ingles|inglés|english|idioma|toefl|cambridge|ielts|idiom/.test(p))
+    return { rama: 'idiomas',      producto_objetivo: 'Golden Gate English Center',            etiqueta_crm: 'idiomas' };
+
+  if (/psicolog|bienestar|mental|emocional|coaching|mentor|terapia|burnout|salud mental/.test(p))
+    return { rama: 'salud_mental', producto_objetivo: 'Fundación Pensamiento Libre',           etiqueta_crm: 'salud_mental' };
+
+  if (/academ|estudio|nivelaci|educaci|curso|colegio|universid|tutoría|tutor|senescyt|preuniver/.test(p))
+    return { rama: 'educacion',    producto_objetivo: 'Atlas Centro de Estudios',              etiqueta_crm: 'educacion' };
+
+  if (/firma.?electr|certificad|token|e-sign/.test(p))
+    return { rama: 'firma_digital', producto_objetivo: 'CMAJ Asociados · Firma Electrónica',  etiqueta_crm: 'firma_digital' };
+
+  if (/marketing|publicidad|redes|social.?media|ventas|captaci|clientes|leads|campañ|anuncio/.test(p))
+    return { rama: 'marketing',    producto_objetivo: 'Marketing MAP',                         etiqueta_crm: 'marketing' };
+
+  // Por defecto: marketing MAP sirve a cualquier negocio
+  return   { rama: 'general',     producto_objetivo: 'Marketing MAP',                          etiqueta_crm: 'general' };
+}
+
 /**
  * A partir de la descripción de un producto, la IA infiere qué tipos de
  * negocios son los mejores compradores potenciales en Ecuador.
@@ -364,35 +403,52 @@ export async function buscarMercadoCiudad(params: {
   query_maps: string;
   ciudad: string;
   limite?: number;
-}): Promise<{ ciudad: string; encontrados: number; guardados: number; sourceId: string }> {
+}): Promise<{ ciudad: string; encontrados: number; guardados: number; sourceId: string; rama: RamaClasificacion }> {
   const query = `${params.query_maps} en ${params.ciudad} Ecuador`;
+
+  // Clasificar por rama antes de guardar — cada prospecto lleva su etiqueta CRM
+  const rama = clasificarPorRama(params.producto);
 
   const result = await scrapeGoogleMaps({
     query,
     maxResults: params.limite ?? 15,
     qualifyWithAi: true,
+    extraData: {
+      rama:              rama.rama,
+      producto_objetivo: rama.producto_objetivo,
+      etiqueta_crm:      rama.etiqueta_crm,
+      producto_promovido: params.producto,
+      ciudad_captacion:  params.ciudad,
+      fuente_captacion:  'google_maps_activo',
+      // Metadatos LOPDP — base legal interés legítimo comercial Art. 23
+      lopdp_base_legal:  'interes_legitimo_comercial',
+      lopdp_tipo_datos:  'informacion_comercial_publica',
+      lopdp_origen:      'google_maps_listado_publico',
+      lopdp_opt_out:     true,
+    },
   });
 
-  // Actualizar metadatos de la fuente con base legal LOPDP
+  // Registrar también en la fuente para trazabilidad
   await db.from('prospect_sources').update({
     config: {
-      producto_promovido: params.producto,
-      ciudad: params.ciudad,
-      query_maps: query,
-      lopdp_base_legal: 'interes_legitimo_comercial',   // LOPDP Art. 23
-      lopdp_tipo_datos: 'informacion_comercial_publica', // No datos personales sensibles
-      lopdp_origen: 'google_maps_listado_publico',
+      producto_promovido:  params.producto,
+      rama:                rama.rama,
+      producto_objetivo:   rama.producto_objetivo,
+      ciudad:              params.ciudad,
+      query_maps:          query,
+      lopdp_base_legal:    'interes_legitimo_comercial',
+      lopdp_tipo_datos:    'informacion_comercial_publica',
       lopdp_permite_opt_out: true,
-      lopdp_minimo_datos: true,
-      fecha_extraccion: new Date().toISOString(),
+      fecha_extraccion:    new Date().toISOString(),
     },
   }).eq('id', result.sourceId);
 
   return {
-    ciudad: params.ciudad,
+    ciudad:    params.ciudad,
     encontrados: result.found,
-    guardados: result.saved,
-    sourceId: result.sourceId,
+    guardados:   result.saved,
+    sourceId:    result.sourceId,
+    rama,
   };
 }
 
