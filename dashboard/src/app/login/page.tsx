@@ -16,7 +16,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         <div className="login-brand">
           <div className="mark">m</div>
           <div>
-            <div className="name">marketing-map</div>
+            <div className="name">Marketing MAP</div>
             <div className="tag">Panel de control</div>
           </div>
         </div>
@@ -33,7 +33,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
           <button type="submit">Entrar →</button>
         </form>
       </div>
-      <p className="login-foot">© marketing-map · Acceso restringido al equipo</p>
+      <p className="login-foot">© Marketing MAP · Acceso restringido al equipo</p>
     </div>
   );
 }

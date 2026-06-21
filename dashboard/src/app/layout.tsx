@@ -11,7 +11,7 @@ import { logout } from './login/actions';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata = {
-  title: 'marketing-map · Panel',
+  title: 'Marketing MAP · Panel',
   description: 'Sistema de captación y gestión de clientes con IA',
 };
 
@@ -38,12 +38,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <div className="brand">
                 <div className="mark">m</div>
                 <div>
-                  <div className="name">marketing-map</div>
+                  <div className="name">Marketing MAP</div>
                   <div className="tag">Captación con IA</div>
                 </div>
               </div>
               <Nav />
-              <div className="sidebar-foot">© marketing-map · Powered by IA</div>
+              <div className="sidebar-foot">© Marketing MAP · Powered by IA</div>
             </aside>
 
             <div className="content">
