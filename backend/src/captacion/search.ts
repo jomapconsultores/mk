@@ -325,7 +325,8 @@ export const CIUDADES_ECUADOR = [
 export interface MercadoInferido {
   cliente_ideal: string;
   industrias: string[];
-  query_maps_principal: string;
+  queries_maps: string[];       // 3 búsquedas dirigidas a compradores (no proveedores)
+  query_maps_principal: string; // primera query — compatibilidad con el frontend
   por_que_lo_necesitan: string;
 }
 
@@ -371,84 +372,100 @@ export function clasificarPorRama(producto: string): RamaClasificacion {
 /**
  * A partir de la descripción de un producto, la IA infiere qué tipos de
  * negocios son los mejores compradores potenciales en Ecuador.
+ * Genera 3 búsquedas de Maps dirigidas a COMPRADORES, no a proveedores.
  */
 export async function inferirMercadoDesdeProducto(producto: string): Promise<MercadoInferido> {
-  const system = `Eres un experto en marketing B2B/B2C en Ecuador, especialista en prospección comercial.
-Dado un producto o servicio, identifica qué tipos de negocios o personas serían los MEJORES compradores.
+  const system = `Eres un experto en prospección comercial B2B/B2C en Ecuador.
+Tu tarea: dado un producto/servicio, identificar quiénes son los COMPRADORES POTENCIALES
+y generar búsquedas precisas de Google Maps para encontrarlos.
+
+REGLA CRÍTICA: Las queries de Maps deben buscar los NEGOCIOS QUE COMPRAN el servicio,
+NO los que lo venden. Ejemplo CORRECTO para "servicios tributarios":
+- "restaurantes y cafeterías" (necesitan contador)
+- "clínicas y consultorios médicos" (necesitan contador)
+- "ferreterías y materiales de construcción" (necesitan contador)
+Ejemplo INCORRECTO: "estudios contables" (eso son competidores, no compradores)
 
 Devuelve SOLO JSON válido:
 {
   "cliente_ideal": "descripción en 1 oración del comprador perfecto en Ecuador",
-  "industrias": ["tipo negocio 1", "tipo negocio 2", "tipo negocio 3"],
-  "query_maps_principal": "texto exacto para buscar en Google Maps (sin mencionar ciudad, e.g.: 'estudios contables y tributarios')",
-  "por_que_lo_necesitan": "argumento concreto y psicológico en 1 oración de por qué este cliente necesita el producto"
+  "industrias": ["sector comprador 1", "sector comprador 2", "sector comprador 3"],
+  "queries_maps": [
+    "tipo de negocio comprador 1 (el de mayor volumen en Ecuador)",
+    "tipo de negocio comprador 2 (segundo segmento más rentable)",
+    "tipo de negocio comprador 3 (nicho con alta necesidad)"
+  ],
+  "por_que_lo_necesitan": "argumento psicológico concreto en 1 oración de por qué este cliente necesita el producto urgentemente"
 }
 
 Reglas:
-- industrias: máximo 4, muy específicas para Ecuador
-- query_maps_principal: debe funcionar bien como búsqueda en Google Maps Ecuador`;
+- queries_maps: exactamente 3, sin mencionar ciudad, específicas para el contexto ecuatoriano
+- Cada query debe ser un TIPO DE NEGOCIO que habitualmente compra este servicio
+- Usa términos que la gente usa en Ecuador (no anglicismos)`;
 
   const user = `Producto/servicio a promocionar: ${producto}`;
-  const text = await llm('classify', system, user, 600);
+  const text = await llm('classify', system, user, 800);
   const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
-  return JSON.parse(json) as MercadoInferido;
+  const parsed = JSON.parse(json) as Omit<MercadoInferido, 'query_maps_principal'> & { query_maps_principal?: string };
+  // compatibilidad: query_maps_principal = primera de las 3 queries
+  const queries = parsed.queries_maps ?? [];
+  return {
+    ...parsed,
+    queries_maps: queries,
+    query_maps_principal: parsed.query_maps_principal ?? queries[0] ?? '',
+  };
 }
 
 /**
  * Busca prospectos para un producto en una ciudad específica de Ecuador.
- * Solo recopila datos comerciales públicos (Maps) — cumple LOPDP Art. 23
- * (interés legítimo comercial en datos de carácter público).
+ * Corre hasta 3 queries dirigidas a COMPRADORES y fusiona resultados.
+ * Solo recopila datos comerciales públicos (Maps) — cumple LOPDP Art. 23.
  */
 export async function buscarMercadoCiudad(params: {
   producto: string;
-  query_maps: string;
+  queries_maps: string[];   // hasta 3 queries de compradores
   ciudad: string;
   limite?: number;
 }): Promise<{ ciudad: string; encontrados: number; guardados: number; sourceId: string; rama: RamaClasificacion }> {
-  const query = `${params.query_maps} en ${params.ciudad} Ecuador`;
-
-  // Clasificar por rama antes de guardar — cada prospecto lleva su etiqueta CRM
   const rama = clasificarPorRama(params.producto);
+  const extraData = {
+    rama:               rama.rama,
+    producto_objetivo:  rama.producto_objetivo,
+    etiqueta_crm:       rama.etiqueta_crm,
+    producto_promovido: params.producto,
+    ciudad_captacion:   params.ciudad,
+    fuente_captacion:   'google_maps_activo',
+    lopdp_base_legal:   'interes_legitimo_comercial',
+    lopdp_tipo_datos:   'informacion_comercial_publica',
+    lopdp_origen:       'google_maps_listado_publico',
+    lopdp_opt_out:      true,
+  };
 
-  const result = await scrapeGoogleMaps({
-    query,
-    maxResults: params.limite ?? 15,
-    qualifyWithAi: true,
-    extraData: {
-      rama:              rama.rama,
-      producto_objetivo: rama.producto_objetivo,
-      etiqueta_crm:      rama.etiqueta_crm,
-      producto_promovido: params.producto,
-      ciudad_captacion:  params.ciudad,
-      fuente_captacion:  'google_maps_activo',
-      // Metadatos LOPDP — base legal interés legítimo comercial Art. 23
-      lopdp_base_legal:  'interes_legitimo_comercial',
-      lopdp_tipo_datos:  'informacion_comercial_publica',
-      lopdp_origen:      'google_maps_listado_publico',
-      lopdp_opt_out:     true,
-    },
-  });
+  // Correr hasta 3 queries en paralelo (cada una busca un segmento de compradores)
+  const limitePorQuery = Math.ceil((params.limite ?? 15) / params.queries_maps.length);
+  const results = await Promise.all(
+    params.queries_maps.map((q) =>
+      scrapeGoogleMaps({
+        query:         `${q} en ${params.ciudad} Ecuador`,
+        maxResults:    limitePorQuery,
+        qualifyWithAi: true,
+        extraData,
+      }).catch((e) => { console.error(`[captacion] query falló: ${q} — ${e.message}`); return null; })
+    )
+  );
 
-  // Registrar también en la fuente para trazabilidad
-  await db.from('prospect_sources').update({
-    config: {
-      producto_promovido:  params.producto,
-      rama:                rama.rama,
-      producto_objetivo:   rama.producto_objetivo,
-      ciudad:              params.ciudad,
-      query_maps:          query,
-      lopdp_base_legal:    'interes_legitimo_comercial',
-      lopdp_tipo_datos:    'informacion_comercial_publica',
-      lopdp_permite_opt_out: true,
-      fecha_extraccion:    new Date().toISOString(),
-    },
-  }).eq('id', result.sourceId);
+  const total = results.reduce(
+    (acc, r) => r ? { encontrados: acc.encontrados + r.found, guardados: acc.guardados + r.saved } : acc,
+    { encontrados: 0, guardados: 0 }
+  );
+  // sourceId: usar el de la primera query exitosa
+  const sourceId = results.find((r) => r !== null)?.sourceId ?? '';
 
   return {
     ciudad:    params.ciudad,
     encontrados: result.found,
     guardados:   result.saved,
-    sourceId:    result.sourceId,
+    sourceId,
     rama,
   };
 }

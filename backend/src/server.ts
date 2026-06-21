@@ -392,7 +392,7 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
   const b = (req.body ?? {}) as {
     producto?: string;
     ciudad?: string;
-    query_maps?: string;
+    queries_maps?: string[];
     inferir?: boolean;
     limite?: number;
   };
@@ -400,7 +400,6 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
   if (!b.producto) return reply.code(400).send({ ok: false, error: 'Falta el campo producto' });
   if (!b.ciudad)   return reply.code(400).send({ ok: false, error: 'Falta el campo ciudad' });
 
-  // Validar que la ciudad sea una de las ciudades ecuatorianas aceptadas
   const ciudadValida = CIUDADES_ECUADOR.find(
     (c) => c.nombre.toLowerCase() === b.ciudad!.toLowerCase()
   );
@@ -408,29 +407,29 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
 
   try {
     let mercado: Awaited<ReturnType<typeof inferirMercadoDesdeProducto>> | undefined;
-    let queryMaps = b.query_maps;
+    let queriesMaps = b.queries_maps;
 
-    if (b.inferir || !queryMaps) {
+    if (!queriesMaps || queriesMaps.length === 0) {
       mercado = await inferirMercadoDesdeProducto(b.producto);
-      queryMaps = mercado.query_maps_principal;
+      queriesMaps = mercado.queries_maps;
     }
 
     const resultado = await buscarMercadoCiudad({
-      producto: b.producto,
-      query_maps: queryMaps!,
-      ciudad: b.ciudad,
-      limite: b.limite ?? 15,
+      producto:    b.producto,
+      queries_maps: queriesMaps,
+      ciudad:      b.ciudad,
+      limite:      b.limite ?? 20,
     });
 
     return reply.code(200).send({
-      ok:              true,
-      ciudad:          resultado.ciudad,
-      encontrados:     resultado.encontrados,
-      guardados:       resultado.guardados,
-      sourceId:        resultado.sourceId,
-      rama:            resultado.rama.rama,
+      ok:                true,
+      ciudad:            resultado.ciudad,
+      encontrados:       resultado.encontrados,
+      guardados:         resultado.guardados,
+      sourceId:          resultado.sourceId,
+      rama:              resultado.rama.rama,
       producto_objetivo: resultado.rama.producto_objetivo,
-      etiqueta_crm:    resultado.rama.etiqueta_crm,
+      etiqueta_crm:      resultado.rama.etiqueta_crm,
       ...(mercado ? { mercado } : {}),
     });
   } catch (err) {

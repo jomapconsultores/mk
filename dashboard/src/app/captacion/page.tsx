@@ -28,6 +28,7 @@ const CIUDADES = [
 interface MercadoInferido {
   cliente_ideal: string;
   industrias: string[];
+  queries_maps: string[];
   query_maps_principal: string;
   por_que_lo_necesitan: string;
 }
@@ -138,7 +139,7 @@ function BuscarMercado() {
   const buscarCiudad = useCallback(async (
     idx: number,
     prod: string,
-    queryMaps: string,
+    queriesMaps: string[],
     acumGuardados: number,
   ) => {
     if (abortRef.current || idx >= CIUDADES.length) {
@@ -149,7 +150,6 @@ function BuscarMercado() {
     const ciudad = CIUDADES[idx];
     setIndiceActual(idx);
 
-    // Agregar placeholder "buscando"
     setResultados(prev => {
       const next = [...prev];
       next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, sourceId: '', estado: 'buscando' };
@@ -163,9 +163,8 @@ function BuscarMercado() {
         body: JSON.stringify({
           producto: prod,
           ciudad: ciudad.nombre,
-          query_maps: queryMaps,
-          inferir: false,
-          limite: 15,
+          queries_maps: queriesMaps,
+          limite: 20,
         }),
       });
       const d = await res.json();
@@ -181,9 +180,8 @@ function BuscarMercado() {
         return next;
       });
 
-      // Pausa respetosa entre ciudades (rate limit + no spam)
       await new Promise(r => setTimeout(r, 1500));
-      buscarCiudad(idx + 1, prod, queryMaps, nuevosGuardados);
+      buscarCiudad(idx + 1, prod, queriesMaps, nuevosGuardados);
 
     } catch (e: any) {
       setResultados(prev => {
@@ -192,7 +190,7 @@ function BuscarMercado() {
         return next;
       });
       await new Promise(r => setTimeout(r, 1000));
-      buscarCiudad(idx + 1, prod, queryMaps, acumGuardados);
+      buscarCiudad(idx + 1, prod, queriesMaps, acumGuardados);
     }
   }, []);
 
@@ -219,14 +217,12 @@ function BuscarMercado() {
       setMercado(m);
       queryMapsRef.current = m.query_maps_principal;
 
-      // Primer resultado ya viene en la respuesta inicial (Cuenca)
       setResultados([{ ...CIUDADES[0], ciudad: CIUDADES[0].nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' }]);
       setTotalGuardados(d.guardados ?? 0);
       setEstado('buscando');
 
-      // Paso 2: continuar con las ciudades restantes
       await new Promise(r => setTimeout(r, 1500));
-      buscarCiudad(1, producto.trim(), m.query_maps_principal, d.guardados ?? 0);
+      buscarCiudad(1, producto.trim(), m.queries_maps ?? [m.query_maps_principal], d.guardados ?? 0);
 
     } catch (e: any) {
       setEstado('error');
