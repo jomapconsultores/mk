@@ -316,6 +316,9 @@ import {
   descubrirEmailsDeEmpresa,
   generarCampanaDonacion,
   getCaptacionStats,
+  inferirMercadoDesdeProducto,
+  buscarMercadoCiudad,
+  CIUDADES_ECUADOR,
 } from './captacion/search.js';
 
 // Generar estrategia de captación con IA
@@ -380,6 +383,58 @@ app.post('/captacion/donacion', async (req, reply) => {
     app.log.error({ err }, 'Error en /captacion/donacion');
     return reply.code(500).send({ ok: false, error: (err as Error).message });
   }
+});
+
+// Buscar mercado por producto — progresivo ciudad por ciudad
+// Solo recopila datos comerciales públicos (Google Maps) — LOPDP Art. 23
+app.post('/captacion/buscar-mercado', async (req, reply) => {
+  const b = (req.body ?? {}) as {
+    producto?: string;
+    ciudad?: string;
+    query_maps?: string;
+    inferir?: boolean;
+    limite?: number;
+  };
+
+  if (!b.producto) return reply.code(400).send({ ok: false, error: 'Falta el campo producto' });
+  if (!b.ciudad)   return reply.code(400).send({ ok: false, error: 'Falta el campo ciudad' });
+
+  // Validar que la ciudad sea una de las ciudades ecuatorianas aceptadas
+  const ciudadValida = CIUDADES_ECUADOR.find(
+    (c) => c.nombre.toLowerCase() === b.ciudad!.toLowerCase()
+  );
+  if (!ciudadValida) return reply.code(400).send({ ok: false, error: 'Ciudad no reconocida' });
+
+  try {
+    let mercado: Awaited<ReturnType<typeof inferirMercadoDesdeProducto>> | undefined;
+    let queryMaps = b.query_maps;
+
+    if (b.inferir || !queryMaps) {
+      mercado = await inferirMercadoDesdeProducto(b.producto);
+      queryMaps = mercado.query_maps_principal;
+    }
+
+    const resultado = await buscarMercadoCiudad({
+      producto: b.producto,
+      query_maps: queryMaps!,
+      ciudad: b.ciudad,
+      limite: b.limite ?? 15,
+    });
+
+    return reply.code(200).send({
+      ok: true,
+      ...resultado,
+      ...(mercado ? { mercado } : {}),
+    });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /captacion/buscar-mercado');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// Lista de ciudades disponibles para búsqueda progresiva
+app.get('/captacion/ciudades', async (_req, reply) => {
+  return reply.code(200).send({ ok: true, ciudades: CIUDADES_ECUADOR });
 });
 
 // Estadísticas del módulo de captación

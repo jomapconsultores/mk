@@ -305,7 +305,99 @@ Público objetivo: ${params.publico_objetivo ?? 'empresarios y profesionales ecu
 }
 
 // ─────────────────────────────────────────────────────────────
-// 6. Estadísticas del módulo
+// 6. Búsqueda de mercado progresiva por producto
+// ─────────────────────────────────────────────────────────────
+
+export const CIUDADES_ECUADOR = [
+  { nombre: 'Cuenca',         region: 'Azuay' },
+  { nombre: 'Guayaquil',      region: 'Guayas' },
+  { nombre: 'Quito',          region: 'Pichincha' },
+  { nombre: 'Ambato',         region: 'Tungurahua' },
+  { nombre: 'Loja',           region: 'Loja' },
+  { nombre: 'Manta',          region: 'Manabí' },
+  { nombre: 'Riobamba',       region: 'Chimborazo' },
+  { nombre: 'Machala',        region: 'El Oro' },
+  { nombre: 'Ibarra',         region: 'Imbabura' },
+  { nombre: 'Santo Domingo',  region: 'Santo Domingo' },
+];
+
+export interface MercadoInferido {
+  cliente_ideal: string;
+  industrias: string[];
+  query_maps_principal: string;
+  por_que_lo_necesitan: string;
+}
+
+/**
+ * A partir de la descripción de un producto, la IA infiere qué tipos de
+ * negocios son los mejores compradores potenciales en Ecuador.
+ */
+export async function inferirMercadoDesdeProducto(producto: string): Promise<MercadoInferido> {
+  const system = `Eres un experto en marketing B2B/B2C en Ecuador, especialista en prospección comercial.
+Dado un producto o servicio, identifica qué tipos de negocios o personas serían los MEJORES compradores.
+
+Devuelve SOLO JSON válido:
+{
+  "cliente_ideal": "descripción en 1 oración del comprador perfecto en Ecuador",
+  "industrias": ["tipo negocio 1", "tipo negocio 2", "tipo negocio 3"],
+  "query_maps_principal": "texto exacto para buscar en Google Maps (sin mencionar ciudad, e.g.: 'estudios contables y tributarios')",
+  "por_que_lo_necesitan": "argumento concreto y psicológico en 1 oración de por qué este cliente necesita el producto"
+}
+
+Reglas:
+- industrias: máximo 4, muy específicas para Ecuador
+- query_maps_principal: debe funcionar bien como búsqueda en Google Maps Ecuador`;
+
+  const user = `Producto/servicio a promocionar: ${producto}`;
+  const text = await llm('classify', system, user, 600);
+  const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
+  return JSON.parse(json) as MercadoInferido;
+}
+
+/**
+ * Busca prospectos para un producto en una ciudad específica de Ecuador.
+ * Solo recopila datos comerciales públicos (Maps) — cumple LOPDP Art. 23
+ * (interés legítimo comercial en datos de carácter público).
+ */
+export async function buscarMercadoCiudad(params: {
+  producto: string;
+  query_maps: string;
+  ciudad: string;
+  limite?: number;
+}): Promise<{ ciudad: string; encontrados: number; guardados: number; sourceId: string }> {
+  const query = `${params.query_maps} en ${params.ciudad} Ecuador`;
+
+  const result = await scrapeGoogleMaps({
+    query,
+    maxResults: params.limite ?? 15,
+    qualifyWithAi: true,
+  });
+
+  // Actualizar metadatos de la fuente con base legal LOPDP
+  await db.from('prospect_sources').update({
+    config: {
+      producto_promovido: params.producto,
+      ciudad: params.ciudad,
+      query_maps: query,
+      lopdp_base_legal: 'interes_legitimo_comercial',   // LOPDP Art. 23
+      lopdp_tipo_datos: 'informacion_comercial_publica', // No datos personales sensibles
+      lopdp_origen: 'google_maps_listado_publico',
+      lopdp_permite_opt_out: true,
+      lopdp_minimo_datos: true,
+      fecha_extraccion: new Date().toISOString(),
+    },
+  }).eq('id', result.sourceId);
+
+  return {
+    ciudad: params.ciudad,
+    encontrados: result.found,
+    guardados: result.saved,
+    sourceId: result.sourceId,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7. Estadísticas del módulo
 // ─────────────────────────────────────────────────────────────
 
 export async function getCaptacionStats(): Promise<{
