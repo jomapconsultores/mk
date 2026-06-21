@@ -52,20 +52,29 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {email ? (
           <div className="app">
             <aside className="sidebar">
-              <div className="brand">
-                <div className="mark">m</div>
-                <div>
-                  <div className="name">Marketing MAP</div>
-                  <div className="tag">Captación con IA</div>
-                </div>
+              <div className="brand" style={{ padding: '16px 12px 12px', display: 'block' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/map-logo.png"
+                  alt="MAP Consultoría & Asesoría Marketing"
+                  style={{ width: '100%', maxWidth: 160, borderRadius: 8, display: 'block', margin: '0 auto' }}
+                />
               </div>
               <Nav />
-              <div className="sidebar-foot">© Marketing MAP · Powered by IA</div>
+              <div className="sidebar-foot" style={{ fontSize: 10, lineHeight: 1.5, padding: '12px 14px', textAlign: 'center' }}>
+                <div style={{ marginBottom: 3 }}>© 2026 Marketing MAP</div>
+                <div style={{ color: 'var(--muted)', fontSize: 9 }}>Desarrollado por</div>
+                <div style={{ fontWeight: 600, fontSize: 10 }}>Marco Antonio Posligua San Martín</div>
+              </div>
             </aside>
 
             <div className="content">
               <header className="topbar">
-                <span className="title">Panel de control</span>
+                <span className="title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/map-logo.png" alt="MAP" style={{ height: 32, borderRadius: 4 }} />
+                  <span>Panel de control</span>
+                </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span className="status-pill"><span className="dot" /> Sistema activo</span>
                   <span style={{ fontSize: 13, color: 'var(--muted)' }}>

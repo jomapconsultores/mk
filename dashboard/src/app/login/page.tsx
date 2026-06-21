@@ -12,12 +12,14 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <div className="login-brand">
-          <div className="mark">m</div>
-          <div>
-            <div className="name">Marketing MAP</div>
-            <div className="tag">Panel de control</div>
-          </div>
+        <div className="login-brand" style={{ display: 'block', textAlign: 'center', marginBottom: 24 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/map-logo.png"
+            alt="MAP Consultoría & Asesoría Marketing"
+            style={{ width: 200, borderRadius: 10, display: 'block', margin: '0 auto 12px' }}
+          />
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>Desarrollado por <strong style={{ color: '#cbd5e1' }}>Marco Antonio Posligua San Martín</strong></div>
         </div>
 
         <h1>Iniciar sesión</h1>
@@ -37,7 +39,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
           <button type="submit">Entrar →</button>
         </form>
       </div>
-      <p className="login-foot">© Marketing MAP · Acceso restringido al equipo</p>
+      <p className="login-foot">© 2026 Marketing MAP · Desarrollado por Marco Antonio Posligua San Martín</p>
     </div>
   );
 }
