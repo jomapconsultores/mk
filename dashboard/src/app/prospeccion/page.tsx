@@ -182,26 +182,9 @@ export default async function ProspeccionPage({
       {(!prospects || prospects.length === 0) && (
         <p className="empty">
           No hay prospectos en esta vista.{' '}
-          {!filterStatus && 'Importa una lista CSV o configura un scraping de Google Maps.'}
+          {!filterStatus && 'Usa el importador de arriba para subir tu primera base de datos.'}
         </p>
       )}
-
-      {/* Instrucciones rápidas */}
-      <div className="section" style={{ marginTop: 32 }}>
-        <h3>Cómo agregar prospectos</h3>
-        <p style={{ color: 'var(--muted)', marginBottom: 12 }}>
-          El backend expone estos endpoints (protegidos con tu <code>CRON_SECRET</code>):
-        </p>
-        <table>
-          <thead><tr><th>Método</th><th>Endpoint</th><th>Qué hace</th></tr></thead>
-          <tbody>
-            <tr><td><code>POST</code></td><td><code>/prospecting/import-csv</code></td><td>Importa CSV de prospectos y los califica con IA</td></tr>
-            <tr><td><code>POST</code></td><td><code>/prospecting/scrape-google</code></td><td>Busca negocios en Google Maps y los guarda</td></tr>
-            <tr><td><code>POST</code></td><td><code>/prospecting/qualify</code></td><td>Califica prospectos 'new' pendientes con IA</td></tr>
-            <tr><td><code>POST</code></td><td><code>/cron/run-prospecting</code></td><td>Ejecuta el motor (inscribir + enviar mensajes)</td></tr>
-          </tbody>
-        </table>
-      </div>
     </>
   );
 }

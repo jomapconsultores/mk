@@ -49,11 +49,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <div className="content">
               <header className="topbar">
                 <span className="title">Panel de control</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span className="status-pill"><span className="dot" /> Sistema activo</span>
                   <span style={{ fontSize: 13, color: 'var(--muted)' }}>
                     {displayName}{role ? ` · ${role}` : ''}
                   </span>
+                  {/* Guía de configuración — botón inline en la topbar */}
+                  <GuidePanel />
                   <form action={logout}>
                     <button type="submit" style={{ background: 'var(--panel-2)', color: 'var(--text)', border: '1px solid var(--border)', padding: '7px 14px' }}>
                       Salir
@@ -63,9 +65,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </header>
               <main className="main">{children}</main>
             </div>
-
-            {/* Guía flotante de configuración — aparece en todas las páginas */}
-            <GuidePanel />
           </div>
         ) : (
           children
