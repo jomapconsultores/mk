@@ -1,14 +1,13 @@
 import { login } from './actions';
+import BiometricButton from './BiometricButton';
 
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
   const error =
-    searchParams.error === '1'
-      ? 'Contraseña incorrecta.'
-      : searchParams.error === '2'
-        ? 'Este correo no está autorizado.'
-        : null;
+    searchParams.error === '1' ? 'Contraseña incorrecta.'
+    : searchParams.error === '2' ? 'Este correo no está autorizado.'
+    : null;
 
   return (
     <div className="login-wrap">
@@ -20,11 +19,16 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
             <div className="tag">Panel de control</div>
           </div>
         </div>
+
         <h1>Iniciar sesión</h1>
-        <p className="login-sub">Ingresa con tu correo autorizado.</p>
+        <p className="login-sub">Ingresa con biometría o con tu contraseña.</p>
 
         {error && <div className="login-error">{error}</div>}
 
+        {/* Biometría (huella / rostro) */}
+        <BiometricButton />
+
+        {/* Formulario con contraseña */}
         <form action={login}>
           <label>Correo electrónico</label>
           <input name="email" type="email" required placeholder="tucorreo@ejemplo.com" />

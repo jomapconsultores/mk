@@ -13,6 +13,13 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 export const metadata = {
   title: 'Marketing MAP · Panel',
   description: 'Sistema de captación y gestión de clientes con IA',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Marketing MAP',
+  },
+  themeColor: '#4f46e5',
 };
 
 const ROLE_LABEL: Record<string, string> = { admin: 'Administrador', socia: 'Socia', agent: 'Asesor' };
@@ -31,6 +38,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="es" className={inter.variable}>
+      <head>
+        <link rel="apple-touch-icon" href="/icon.svg" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js');
+            });
+          }
+        ` }} />
+      </head>
       <body>
         {email ? (
           <div className="app">

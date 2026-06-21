@@ -6,5 +6,7 @@ const nextConfig = {
       bodySizeLimit: '25mb',
     },
   },
+  // @simplewebauthn/server es ESM puro — no bundlear en el servidor
+  serverExternalPackages: ['@simplewebauthn/server'],
 };
 export default nextConfig;
