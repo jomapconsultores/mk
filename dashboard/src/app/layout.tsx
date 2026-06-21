@@ -39,7 +39,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="es" className={inter.variable}>
       <head>
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="icon" href="/map-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/map-logo.png" />
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
