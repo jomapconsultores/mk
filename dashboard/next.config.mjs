@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      bodySizeLimit: '6mb', // permite importar archivos CSV grandes
+      bodySizeLimit: '25mb',
     },
   },
 };

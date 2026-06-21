@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import multipart from '@fastify/multipart';
 import { config } from './config.js';
 import { parseWhatsAppWebhook } from './channels/whatsapp.js';
 import { handleInboundMessage, handleWebLead } from './orchestrator.js';
@@ -6,8 +7,15 @@ import { runEngineOnce } from './sequences/engine.js';
 import { importProspectsFromCsv, qualifyAllNew } from './prospecting/importer.js';
 import { scrapeGoogleMaps } from './prospecting/scrapers/google-maps.js';
 import { runProspectingOnce } from './prospecting/engine.js';
+import { fileToText, extractContactsFromText } from './prospecting/smart-extractor.js';
+import { db } from './db.js';
 
 const app = Fastify({ logger: true });
+
+// Soporte para uploads multipart (PDF, Excel, CSV)
+app.register(multipart, {
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+});
 
 // Tolerar cuerpos JSON vacios (el cron puede llegar sin body): se interpretan como {}.
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
@@ -183,6 +191,119 @@ app.get('/prospecting/prospects', async (req, reply) => {
     .limit(Number(q.limit ?? 100));
   if (error) return reply.code(500).send({ ok: false, error: error.message });
   return reply.code(200).send({ ok: true, prospects: data });
+});
+
+// ── Importación inteligente con IA (PDF / Excel / CSV) ─────────────────────
+app.post('/prospecting/import-smart', async (req, reply) => {
+  let fileBuffer: Buffer | null = null;
+  let filename = 'archivo';
+  let mimetype = 'text/plain';
+  let sourceName = `Importación ${new Date().toLocaleDateString('es')}`;
+
+  try {
+    for await (const part of req.parts()) {
+      if (part.type === 'file') {
+        fileBuffer = await part.toBuffer();
+        filename   = part.filename ?? 'archivo';
+        mimetype   = part.mimetype ?? 'text/plain';
+      } else {
+        if (part.fieldname === 'source_name' && part.value) {
+          sourceName = String(part.value).trim() || sourceName;
+        }
+      }
+    }
+  } catch (err) {
+    return reply.code(400).send({ ok: false, error: 'Error leyendo el archivo: ' + (err as Error).message });
+  }
+
+  if (!fileBuffer || fileBuffer.length === 0) {
+    return reply.code(400).send({ ok: false, error: 'No se recibió ningún archivo.' });
+  }
+
+  try {
+    // 1. Convertir a texto según tipo de archivo
+    const rawText = await fileToText(fileBuffer, mimetype, filename);
+    if (!rawText.trim()) {
+      return reply.code(400).send({ ok: false, error: 'No se pudo extraer texto del archivo.' });
+    }
+
+    // 2. IA extrae contactos estructurados
+    const contacts = await extractContactsFromText(rawText, sourceName);
+    if (contacts.length === 0) {
+      return reply.code(200).send({ ok: true, extracted: 0, imported: 0, duplicates: 0, message: 'La IA no encontró contactos en el archivo.' });
+    }
+
+    // 3. Crear fuente
+    const { data: source } = await db
+      .from('prospect_sources')
+      .insert({ name: sourceName, type: 'smart_import' })
+      .select('id')
+      .single();
+    const sourceId = source!.id;
+
+    // 4. Insertar con deduplicación por email o teléfono
+    let imported   = 0;
+    let duplicates = 0;
+
+    for (const c of contacts) {
+      const primaryEmail  = c.email_personal ?? c.email_institutional ?? null;
+      const primaryPhone  = c.phone_mobile   ?? c.phone_landline      ?? null;
+      const fullName      = [c.first_name, c.last_name].filter(Boolean).join(' ') || null;
+
+      // Deduplicar
+      if (primaryEmail || primaryPhone) {
+        const checks: boolean[] = [];
+        if (primaryEmail) {
+          const r = await db.from('prospects').select('id', { count: 'exact', head: true })
+            .or(`email.eq.${primaryEmail},email_personal.eq.${primaryEmail},email_institutional.eq.${primaryEmail}`);
+          checks.push((r.count ?? 0) > 0);
+        }
+        if (primaryPhone) {
+          const r = await db.from('prospects').select('id', { count: 'exact', head: true })
+            .or(`phone.eq.${primaryPhone},phone_mobile.eq.${primaryPhone}`);
+          checks.push((r.count ?? 0) > 0);
+        }
+        if (checks.some(Boolean)) { duplicates++; continue; }
+      }
+
+      const { error } = await db.from('prospects').insert({
+        source_id:            sourceId,
+        full_name:            fullName,
+        first_name:           c.first_name           ?? null,
+        last_name:            c.last_name            ?? null,
+        company:              c.company              ?? null,
+        email:                primaryEmail,
+        email_personal:       c.email_personal       ?? null,
+        email_institutional:  c.email_institutional  ?? null,
+        phone:                primaryPhone,
+        phone_mobile:         c.phone_mobile         ?? null,
+        phone_landline:       c.phone_landline        ?? null,
+        industry:             c.industry             ?? null,
+        location:             c.location             ?? null,
+        status:               'new',
+        raw_data:             {},
+      });
+
+      if (!error) imported++;
+      else app.log.error({ err: error }, '[smart-import] error insertando');
+    }
+
+    // 5. Calificar en segundo plano con IA
+    qualifyAllNew(sourceId).catch((e) => app.log.error(e, '[smart-import] error calificando'));
+
+    return reply.code(200).send({
+      ok: true,
+      extracted:  contacts.length,
+      imported,
+      duplicates,
+      source_id:  sourceId,
+      message:    `Se extrajeron ${contacts.length} contactos. ${imported} importados, ${duplicates} duplicados omitidos. La IA los está calificando en segundo plano.`,
+    });
+
+  } catch (err) {
+    app.log.error({ err }, '[smart-import] error general');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
 });
 
 // Stats de prospección para el dashboard

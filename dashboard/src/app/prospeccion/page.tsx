@@ -1,6 +1,9 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import ImportDropzone from './ImportDropzone';
 
 export const dynamic = 'force-dynamic';
+
+const BACKEND_URL = process.env.BACKEND_URL ?? 'https://marketing-map.onrender.com';
 
 const STATUS_LABEL: Record<string, string> = {
   new:        'Nuevo',
@@ -64,6 +67,11 @@ export default async function ProspeccionPage({
       <p className="subtitle">
         Busca, califica y convierte prospectos de forma natural y multicanal.
       </p>
+
+      {/* Importador inteligente con drag & drop */}
+      <div className="section" style={{ marginBottom: 24 }}>
+        <ImportDropzone backendUrl={BACKEND_URL} />
+      </div>
 
       {/* KPIs */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
