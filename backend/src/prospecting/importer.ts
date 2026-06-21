@@ -127,17 +127,20 @@ export async function importProspectsFromCsv(opts: {
   return { imported, duplicates, sourceId };
 }
 
-/** Califica todos los prospectos 'new' de una fuente con la IA. */
-export async function qualifyAllNew(sourceId?: string): Promise<void> {
-  let q = db.from('prospects').select('*').eq('status', 'new').limit(50);
+/** Califica prospectos 'new' con la IA. Retorna cuántos procesó. */
+export async function qualifyAllNew(sourceId?: string, batchSize = 20): Promise<{ processed: number; qualified: number; errors: number }> {
+  let q = db.from('prospects').select('*').eq('status', 'new').limit(batchSize);
   if (sourceId) q = q.eq('source_id', sourceId);
   const { data: prospects } = await q;
+
+  let qualified = 0;
+  let errors = 0;
 
   for (const p of prospects ?? []) {
     try {
       await db.from('prospects').update({ status: 'qualifying' }).eq('id', p.id);
 
-      const q = await qualifyProspect({
+      const result = await qualifyProspect({
         full_name:  p.full_name,
         company:    p.company,
         industry:   p.industry,
@@ -148,23 +151,27 @@ export async function qualifyAllNew(sourceId?: string): Promise<void> {
 
       await db.from('prospects').update({
         status:                 'qualified',
-        fit_score:              q.fit_score,
-        industry:               q.industry,
-        main_pain:              q.main_pain,
-        outreach_angle:         q.outreach_angle,
-        recommended_product_id: q.recommended_product_id,
-        ai_profile_summary:     q.ai_profile_summary,
-        disc_estimate:          q.disc_estimate   ?? null,
-        awareness_level:        q.awareness_level ?? null,
-        emotional_hook:         q.emotional_hook  ?? null,
-        best_channel:           q.best_channel    ?? null,
-        icebreaker:             q.icebreaker      ?? null,
+        fit_score:              result.fit_score,
+        industry:               result.industry,
+        main_pain:              result.main_pain,
+        outreach_angle:         result.outreach_angle,
+        recommended_product_id: result.recommended_product_id,
+        ai_profile_summary:     result.ai_profile_summary,
+        disc_estimate:          result.disc_estimate   ?? null,
+        awareness_level:        result.awareness_level ?? null,
+        emotional_hook:         result.emotional_hook  ?? null,
+        best_channel:           result.best_channel    ?? null,
+        icebreaker:             result.icebreaker      ?? null,
         qualified_at:           new Date().toISOString(),
       }).eq('id', p.id);
 
+      qualified++;
     } catch (err) {
       console.error(`[importer] error calificando ${p.id}:`, err);
       await db.from('prospects').update({ status: 'new' }).eq('id', p.id);
+      errors++;
     }
   }
+
+  return { processed: (prospects ?? []).length, qualified, errors };
 }

@@ -159,9 +159,14 @@ app.post('/prospecting/import-csv', async (req, reply) => {
 
 // Disparar calificación IA de prospectos pendientes
 app.post('/prospecting/qualify', async (req, reply) => {
-  const b = (req.body ?? {}) as { source_id?: string };
-  qualifyAllNew(b.source_id).catch((e) => app.log.error(e, 'Error calificando prospectos'));
-  return reply.code(202).send({ ok: true, message: 'Calificación iniciada en segundo plano' });
+  const b = (req.body ?? {}) as { source_id?: string; batch_size?: number };
+  try {
+    const stats = await qualifyAllNew(b.source_id, b.batch_size ?? 20);
+    return reply.send({ ok: true, ...stats });
+  } catch (err) {
+    app.log.error(err, 'Error calificando prospectos');
+    return reply.code(500).send({ ok: false, error: String(err) });
+  }
 });
 
 // Scraping de Google Maps

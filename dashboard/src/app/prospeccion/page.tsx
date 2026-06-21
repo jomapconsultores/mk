@@ -1,6 +1,7 @@
 import { getAdmin } from '@/lib/supabase-admin';
 import ImportDropzone from './ImportDropzone';
 import CsvImporter from './CsvImporter';
+import QualifyButton from './QualifyButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,6 +159,12 @@ export default async function ProspeccionPage({
               <p className="empty">No hay campañas creadas. Ejecuta la migración <code>db/add_prospecting.sql</code>.</p>
             )}
           </div>
+
+          {/* Botón de calificación masiva */}
+          <QualifyButton
+            pendingCount={(counts['new'] ?? 0) + (counts['qualifying'] ?? 0)}
+            backendUrl={BACKEND_URL}
+          />
 
           {/* Filtros por estado */}
           <div style={{ marginBottom: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
