@@ -123,6 +123,50 @@ app.post('/webhooks/whatsapp', async (req, reply) => {
 });
 
 // ============================================================
+// MIGRACIÓN DE BASE DE DATOS (one-shot, idempotente, protegido)
+// ============================================================
+app.post('/admin/migrate', async (req, reply) => {
+  const secret = (req.headers['x-cron-secret'] as string) ?? '';
+  if (!config.cronSecret || secret !== config.cronSecret) {
+    return reply.code(401).send({ ok: false, error: 'No autorizado' });
+  }
+  try {
+    const { Pool } = await import('pg');
+    const supabaseUrl = config.supabase.url;         // https://XXX.supabase.co
+    const ref = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+    const pool = new Pool({
+      host:     `aws-0-us-east-1.pooler.supabase.com`,
+      port:     6543,
+      database: 'postgres',
+      user:     `postgres.${ref}`,
+      password: config.supabase.serviceKey,
+      ssl:      true,
+    });
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        ALTER TABLE prospects
+          ADD COLUMN IF NOT EXISTS disc_estimate     text CHECK (disc_estimate IN ('D','I','S','C')),
+          ADD COLUMN IF NOT EXISTS awareness_level   smallint CHECK (awareness_level BETWEEN 1 AND 5),
+          ADD COLUMN IF NOT EXISTS emotional_hook    text,
+          ADD COLUMN IF NOT EXISTS best_channel      text CHECK (best_channel IN ('email','whatsapp','instagram')),
+          ADD COLUMN IF NOT EXISTS icebreaker        text
+      `);
+      const { rowCount } = await client.query(
+        `UPDATE prospects SET status = 'new' WHERE status = 'qualifying'`
+      );
+      return reply.send({ ok: true, reset: rowCount });
+    } finally {
+      client.release();
+      await pool.end();
+    }
+  } catch (err) {
+    app.log.error(err, 'Error en /admin/migrate');
+    return reply.code(500).send({ ok: false, error: String(err) });
+  }
+});
+
+// ============================================================
 // PROSPECCIÓN ACTIVA
 // ============================================================
 
