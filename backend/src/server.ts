@@ -140,7 +140,7 @@ app.post('/admin/migrate', async (req, reply) => {
       database: 'postgres',
       user:     `postgres.${ref}`,
       password: config.supabase.serviceKey,
-      ssl:      true,
+      ssl:      { rejectUnauthorized: false }, // pooler de Supabase usa CA propio
     });
     const client = await pool.connect();
     try {
