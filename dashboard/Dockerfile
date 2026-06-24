@@ -2,7 +2,8 @@
 # Multi-stage: se compila con todas las deps y se ejecuta solo con las de producción.
 
 # 1) Build
-FROM node:20-alpine AS builder
+# Node 22: @supabase/supabase-js requiere WebSocket nativo (no disponible en Node 20).
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # IMPORTANTE: las variables NEXT_PUBLIC_* se incrustan en el bundle en build-time.
@@ -16,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # 2) Runtime
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 ENV NODE_ENV=production

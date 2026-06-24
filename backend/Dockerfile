@@ -1,5 +1,6 @@
 # Backend Marketing MAP — API Fastify (Node/TS ejecutado con tsx, sin paso de build).
-FROM node:20-alpine
+# Node 22: @supabase/supabase-js requiere WebSocket nativo (no disponible en Node 20).
+FROM node:22-alpine
 
 # Zona horaria y certificados (para llamadas HTTPS a Supabase/APIs externas).
 RUN apk add --no-cache tzdata ca-certificates
