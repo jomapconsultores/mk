@@ -28,8 +28,9 @@ const CIUDADES = [
 interface MercadoInferido {
   cliente_ideal: string;
   industrias: string[];
-  queries_maps: string[];
-  query_maps_principal: string;
+  queries_juridicas: string[];
+  queries_naturales: string[];
+  perfil_natural: string;
   por_que_lo_necesitan: string;
 }
 
@@ -39,6 +40,8 @@ interface ResultadoCiudad {
   ico: string;
   encontrados: number;
   guardados: number;
+  guardados_juridicas: number;
+  guardados_naturales: number;
   sourceId: string;
   estado: 'buscando' | 'listo' | 'error';
   error?: string;
@@ -130,16 +133,18 @@ function BuscarMercado() {
   const [totalGuardados, setTotalGuardados] = useState(0);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
-  const queryMapsRef = useRef('');
 
   const totalEncontrados = resultados.reduce((s, r) => s + r.encontrados, 0);
+  const totalJuridicas = resultados.reduce((s, r) => s + (r.guardados_juridicas ?? 0), 0);
+  const totalNaturales = resultados.reduce((s, r) => s + (r.guardados_naturales ?? 0), 0);
   const listo = estado === 'listo';
   const enProceso = estado === 'inferiendo' || estado === 'buscando';
 
   const buscarCiudad = useCallback(async (
     idx: number,
     prod: string,
-    queriesMaps: string[],
+    juridicas: string[],
+    naturales: string[],
     acumGuardados: number,
   ) => {
     if (abortRef.current || idx >= CIUDADES.length) {
@@ -152,7 +157,7 @@ function BuscarMercado() {
 
     setResultados(prev => {
       const next = [...prev];
-      next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, sourceId: '', estado: 'buscando' };
+      next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, guardados_juridicas: 0, guardados_naturales: 0, sourceId: '', estado: 'buscando' };
       return next;
     });
 
@@ -163,8 +168,9 @@ function BuscarMercado() {
         body: JSON.stringify({
           producto: prod,
           ciudad: ciudad.nombre,
-          queries_maps: queriesMaps,
-          limite: 20,
+          queries_juridicas: juridicas,
+          queries_naturales: naturales,
+          limite: 24,
         }),
       });
       const d = await res.json();
@@ -176,21 +182,21 @@ function BuscarMercado() {
 
       setResultados(prev => {
         const next = [...prev];
-        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' };
+        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, guardados_juridicas: d.guardados_juridicas ?? 0, guardados_naturales: d.guardados_naturales ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' };
         return next;
       });
 
       await new Promise(r => setTimeout(r, 1500));
-      buscarCiudad(idx + 1, prod, queriesMaps, nuevosGuardados);
+      buscarCiudad(idx + 1, prod, juridicas, naturales, nuevosGuardados);
 
     } catch (e: any) {
       setResultados(prev => {
         const next = [...prev];
-        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, sourceId: '', estado: 'error', error: e.message };
+        next[idx] = { ...ciudad, ciudad: ciudad.nombre, encontrados: 0, guardados: 0, guardados_juridicas: 0, guardados_naturales: 0, sourceId: '', estado: 'error', error: e.message };
         return next;
       });
       await new Promise(r => setTimeout(r, 1000));
-      buscarCiudad(idx + 1, prod, queriesMaps, acumGuardados);
+      buscarCiudad(idx + 1, prod, juridicas, naturales, acumGuardados);
     }
   }, []);
 
@@ -215,14 +221,13 @@ function BuscarMercado() {
 
       const m: MercadoInferido = d.mercado;
       setMercado(m);
-      queryMapsRef.current = m.query_maps_principal;
 
-      setResultados([{ ...CIUDADES[0], ciudad: CIUDADES[0].nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' }]);
+      setResultados([{ ...CIUDADES[0], ciudad: CIUDADES[0].nombre, encontrados: d.encontrados ?? 0, guardados: d.guardados ?? 0, guardados_juridicas: d.guardados_juridicas ?? 0, guardados_naturales: d.guardados_naturales ?? 0, sourceId: d.sourceId ?? '', estado: 'listo' }]);
       setTotalGuardados(d.guardados ?? 0);
       setEstado('buscando');
 
       await new Promise(r => setTimeout(r, 1500));
-      buscarCiudad(1, producto.trim(), m.queries_maps ?? [m.query_maps_principal], d.guardados ?? 0);
+      buscarCiudad(1, producto.trim(), m.queries_juridicas ?? [], m.queries_naturales ?? [], d.guardados ?? 0);
 
     } catch (e: any) {
       setEstado('error');
@@ -243,7 +248,7 @@ function BuscarMercado() {
       <div style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(129,140,248,0.04) 100%)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: 16, padding: 28, marginBottom: 24 }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>¿Qué producto o servicio quieres promocionar?</h2>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>
-          La IA identifica automáticamente tu mercado objetivo y busca clientes potenciales en Ecuador — comenzando por Cuenca y expandiéndose de manera creciente.
+          La IA identifica tu mercado objetivo y busca clientes potenciales en Ecuador — tanto <strong>personas jurídicas</strong> (negocios y empresas) como <strong>personas naturales</strong> (profesionales independientes y autónomos) — comenzando por Cuenca y expandiéndose de manera creciente.
         </p>
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -270,7 +275,7 @@ function BuscarMercado() {
         <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
           <span style={{ fontSize: 13 }}>🛡️</span>
           <span>
-            <strong>Privacidad y LOPDP:</strong> Solo recopilamos datos comerciales públicos (nombre del negocio, teléfono empresarial, sitio web) desde listados de Google Maps. No se recopilan datos personales sensibles. Base legal: interés legítimo comercial (LOPDP Art. 23). Cualquier negocio puede solicitar su exclusión.
+            <strong>Privacidad y LOPDP:</strong> Solo recopilamos datos comerciales públicos (nombre comercial o del profesional, teléfono y sitio web de contacto comercial) desde listados públicos de Google Maps, tanto de negocios como de profesionales independientes que ofrecen sus servicios al público. No se recopilan datos personales sensibles. Base legal: interés legítimo comercial y datos de contacto profesional de fuente pública (LOPDP Art. 2, 7 y 9). Cualquier persona o negocio puede solicitar su exclusión.
           </span>
         </div>
       </div>
@@ -284,7 +289,7 @@ function BuscarMercado() {
       {/* Mercado inferido */}
       {mercado && (
         <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
             <div style={{ flex: 2, minWidth: 240 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>Cliente ideal identificado</div>
               <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>{mercado.cliente_ideal}</p>
@@ -293,6 +298,19 @@ function BuscarMercado() {
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>Sectores objetivo</div>
               {mercado.industrias.map((ind, i) => <Tag key={i} label={ind} />)}
+            </div>
+          </div>
+
+          {/* Dos segmentos: personas jurídicas + personas naturales */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            <div style={{ background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent,#4f46e5)', textTransform: 'uppercase', marginBottom: 6 }}>🏢 Personas jurídicas (negocios)</div>
+              <div>{(mercado.queries_juridicas ?? []).map((q, i) => <Tag key={i} label={q} />)}</div>
+            </div>
+            <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', marginBottom: 6 }}>👤 Personas naturales (independientes)</div>
+              {mercado.perfil_natural && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, lineHeight: 1.5 }}>{mercado.perfil_natural}</p>}
+              <div>{(mercado.queries_naturales ?? []).map((q, i) => <Tag key={i} label={q} />)}</div>
             </div>
           </div>
         </div>
@@ -313,6 +331,13 @@ function BuscarMercado() {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent,#4f46e5)' }}>{totalGuardados}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>prospectos guardados</div>
+              {(totalJuridicas > 0 || totalNaturales > 0) && (
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                  <span style={{ color: 'var(--accent,#4f46e5)' }}>🏢 {totalJuridicas} jurídicas</span>
+                  {' · '}
+                  <span style={{ color: '#10b981' }}>👤 {totalNaturales} naturales</span>
+                </div>
+              )}
             </div>
           </div>
 
