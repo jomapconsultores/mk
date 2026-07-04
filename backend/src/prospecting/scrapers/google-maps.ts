@@ -19,6 +19,7 @@ export async function scrapeGoogleMaps(opts: {
   query: string;       // p.ej. "restaurantes en Quito Ecuador"
   maxResults?: number;
   qualifyWithAi?: boolean;
+  personaTipo?: 'juridica' | 'natural'; // jurídica = negocio (company); natural = profesional independiente (full_name)
   extraData?: Record<string, unknown>; // metadata adicional que se guarda en raw_data (ej. rama, producto_objetivo)
 }): Promise<{ found: number; saved: number; sourceId: string }> {
   const apiKey = config.google.placesApiKey;
@@ -40,25 +41,35 @@ export async function scrapeGoogleMaps(opts: {
   const sourceId = source.id;
 
   const places = await searchPlaces(opts.query, maxResults, apiKey);
+  const esNatural = opts.personaTipo === 'natural';
   let saved = 0;
 
   for (const place of places) {
-    // Dedup por teléfono o nombre+dirección
+    // Dedup por teléfono
     if (place.phone) {
       const { count } = await db.from('prospects').select('id', { count: 'exact', head: true }).eq('phone', place.phone);
       if ((count ?? 0) > 0) continue;
+    } else {
+      // Sin teléfono (frecuente en personas naturales): dedup por nombre + ubicación
+      const col = esNatural ? 'full_name' : 'company';
+      let q = db.from('prospects').select('id', { count: 'exact', head: true }).eq(col, place.name);
+      if (place.address) q = q.eq('location', place.address);
+      const { count } = await q;
+      if ((count ?? 0) > 0) continue;
     }
 
+    // Persona natural → el listado de Maps es el nombre del profesional (full_name).
+    // Persona jurídica → es el nombre del negocio (company).
     const { error } = await db.from('prospects').insert({
       source_id:  sourceId,
-      full_name:  null,
-      company:    place.name,
+      full_name:  esNatural ? place.name : null,
+      company:    esNatural ? null       : place.name,
       phone:      place.phone      ?? null,
       website:    place.website    ?? null,
       location:   place.address    ?? null,
       industry:   (place.types ?? []).slice(0, 3).join(', ') || null,
       status:     'new',
-      raw_data:   { google_types: place.types, address: place.address, ...opts.extraData },
+      raw_data:   { google_types: place.types, address: place.address, tipo_persona: opts.personaTipo ?? 'juridica', ...opts.extraData },
     });
 
     if (!error) saved++;

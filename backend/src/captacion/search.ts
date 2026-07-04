@@ -325,8 +325,9 @@ export const CIUDADES_ECUADOR = [
 export interface MercadoInferido {
   cliente_ideal: string;
   industrias: string[];
-  queries_maps: string[];       // 3 búsquedas dirigidas a compradores (no proveedores)
-  query_maps_principal: string; // primera query — compatibilidad con el frontend
+  queries_juridicas: string[];  // negocios/empresas compradoras (personas jurídicas)
+  queries_naturales: string[];  // profesionales independientes / autónomos (personas naturales)
+  perfil_natural: string;       // descripción del comprador persona natural
   por_que_lo_necesitan: string;
 }
 
@@ -375,60 +376,96 @@ export function clasificarPorRama(producto: string): RamaClasificacion {
  * Genera 3 búsquedas de Maps dirigidas a COMPRADORES, no a proveedores.
  */
 export async function inferirMercadoDesdeProducto(producto: string): Promise<MercadoInferido> {
-  const system = `Eres un experto en prospección comercial B2B/B2C en Ecuador.
-Tu tarea: dado un producto/servicio, identificar quiénes son los COMPRADORES POTENCIALES
-y generar búsquedas precisas de Google Maps para encontrarlos.
+  const system = `Eres un experto en prospección comercial B2B y B2C en Ecuador.
+Tu tarea: dado un producto/servicio, identificar TODOS los COMPRADORES POTENCIALES y
+generar búsquedas precisas de Google Maps para encontrarlos.
 
-REGLA CRÍTICA: Las queries de Maps deben buscar los NEGOCIOS QUE COMPRAN el servicio,
-NO los que lo venden. Ejemplo CORRECTO para "servicios tributarios":
-- "restaurantes y cafeterías" (necesitan contador)
-- "clínicas y consultorios médicos" (necesitan contador)
-- "ferreterías y materiales de construcción" (necesitan contador)
-Ejemplo INCORRECTO: "estudios contables" (eso son competidores, no compradores)
+Debes cubrir DOS tipos de comprador, sin omitir ninguno:
+
+1) PERSONAS JURÍDICAS (empresas y negocios constituidos) — "queries_juridicas"
+   Negocios que compran el servicio. Ejemplo para "servicios tributarios":
+   - "restaurantes y cafeterías"
+   - "clínicas y consultorios médicos"
+   - "ferreterías y materiales de construcción"
+
+2) PERSONAS NATURALES (profesionales independientes, autónomos, emprendedores
+   que en Google Maps aparecen con su PROPIO NOMBRE y RUC de persona natural) — "queries_naturales"
+   Profesionales que ejercen por cuenta propia y compran el servicio. Ejemplo para "servicios tributarios":
+   - "abogados independientes"
+   - "médicos particulares" / "odontólogos particulares"
+   - "arquitectos independientes" / "ingenieros consultores"
+   - "contadores autónomos", "agentes inmobiliarios", "estilistas", "fotógrafos", "tutores particulares"
+   Piensa en gremios de profesionales y oficios que facturan a nombre propio.
+
+REGLA CRÍTICA: busca a QUIEN COMPRA el servicio, NUNCA a quien lo vende (esos son competidores).
+Ejemplo INCORRECTO para "servicios tributarios": "estudios contables".
 
 Devuelve SOLO JSON válido:
 {
   "cliente_ideal": "descripción en 1 oración del comprador perfecto en Ecuador",
-  "industrias": ["sector comprador 1", "sector comprador 2", "sector comprador 3"],
-  "queries_maps": [
-    "tipo de negocio comprador 1 (el de mayor volumen en Ecuador)",
+  "perfil_natural": "descripción en 1 oración del comprador persona natural / profesional independiente ideal",
+  "industrias": ["sector comprador 1", "sector comprador 2", "sector comprador 3", "sector comprador 4"],
+  "queries_juridicas": [
+    "tipo de negocio comprador 1 (mayor volumen en Ecuador)",
     "tipo de negocio comprador 2 (segundo segmento más rentable)",
     "tipo de negocio comprador 3 (nicho con alta necesidad)"
+  ],
+  "queries_naturales": [
+    "profesión/oficio independiente comprador 1 (el más numeroso)",
+    "profesión/oficio independiente comprador 2",
+    "profesión/oficio independiente comprador 3"
   ],
   "por_que_lo_necesitan": "argumento psicológico concreto en 1 oración de por qué este cliente necesita el producto urgentemente"
 }
 
 Reglas:
-- queries_maps: exactamente 3, sin mencionar ciudad, específicas para el contexto ecuatoriano
-- Cada query debe ser un TIPO DE NEGOCIO que habitualmente compra este servicio
-- Usa términos que la gente usa en Ecuador (no anglicismos)`;
+- queries_juridicas: exactamente 3. queries_naturales: exactamente 3. Sin mencionar ciudad.
+- Cada query debe ser un TIPO DE COMPRADOR habitual de este servicio, en términos que se usan en Ecuador (sin anglicismos).
+- Si el producto es claramente solo B2B o solo B2C, igual entrega las 3+3; prioriza las profesiones independientes que más encajen.`;
 
   const user = `Producto/servicio a promocionar: ${producto}`;
-  const text = await llm('classify', system, user, 800);
+  const text = await llm('classify', system, user, 1000);
   const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
-  const parsed = JSON.parse(json) as Omit<MercadoInferido, 'query_maps_principal'> & { query_maps_principal?: string };
-  // compatibilidad: query_maps_principal = primera de las 3 queries
-  const queries = parsed.queries_maps ?? [];
+  const parsed = JSON.parse(json) as Partial<MercadoInferido> & { queries_maps?: string[] };
+
+  // Normalizar: aceptar respuestas viejas (queries_maps) y nuevas (juridicas/naturales)
+  const juridicas = parsed.queries_juridicas ?? parsed.queries_maps ?? [];
+  const naturales = parsed.queries_naturales ?? [];
+
   return {
-    ...parsed,
-    queries_maps: queries,
-    query_maps_principal: parsed.query_maps_principal ?? queries[0] ?? '',
+    cliente_ideal:        parsed.cliente_ideal ?? '',
+    industrias:           parsed.industrias ?? [],
+    perfil_natural:       parsed.perfil_natural ?? '',
+    queries_juridicas:    juridicas,
+    queries_naturales:    naturales,
+    por_que_lo_necesitan: parsed.por_que_lo_necesitan ?? '',
   };
 }
 
 /**
  * Busca prospectos para un producto en una ciudad específica de Ecuador.
  * Corre hasta 3 queries dirigidas a COMPRADORES y fusiona resultados.
- * Solo recopila datos comerciales públicos (Maps) — cumple LOPDP Art. 23.
+ * Solo recopila datos comerciales públicos (Maps) — cumple LOPDP Art. 2, 7 num. 7-8 y 9 (datos de contacto
+ * profesional de fuente pública, base de interés legítimo).
  */
 export async function buscarMercadoCiudad(params: {
   producto: string;
-  queries_maps: string[];   // hasta 3 queries de compradores
+  queries_maps?: string[];       // compatibilidad: tratadas como jurídicas si no se separan
+  queries_juridicas?: string[];  // negocios/empresas (personas jurídicas)
+  queries_naturales?: string[];  // profesionales independientes (personas naturales)
   ciudad: string;
   limite?: number;
-}): Promise<{ ciudad: string; encontrados: number; guardados: number; sourceId: string; rama: RamaClasificacion }> {
+}): Promise<{
+  ciudad: string;
+  encontrados: number;
+  guardados: number;
+  guardados_juridicas: number;
+  guardados_naturales: number;
+  sourceId: string;
+  rama: RamaClasificacion;
+}> {
   const rama = clasificarPorRama(params.producto);
-  const extraData = {
+  const baseData = {
     rama:               rama.rama,
     producto_objetivo:  rama.producto_objetivo,
     etiqueta_crm:       rama.etiqueta_crm,
@@ -441,30 +478,54 @@ export async function buscarMercadoCiudad(params: {
     lopdp_opt_out:      true,
   };
 
-  // Correr hasta 3 queries en paralelo (cada una busca un segmento de compradores)
-  const limitePorQuery = Math.ceil((params.limite ?? 15) / params.queries_maps.length);
+  // Segmentos de búsqueda: jurídicas (negocios) + naturales (profesionales independientes)
+  const juridicas = params.queries_juridicas ?? params.queries_maps ?? [];
+  const naturales = params.queries_naturales ?? [];
+  const segmentos: { query: string; tipo: 'juridica' | 'natural' }[] = [
+    ...juridicas.map((query) => ({ query, tipo: 'juridica' as const })),
+    ...naturales.map((query) => ({ query, tipo: 'natural'  as const })),
+  ];
+  if (segmentos.length === 0) {
+    return { ciudad: params.ciudad, encontrados: 0, guardados: 0, guardados_juridicas: 0, guardados_naturales: 0, sourceId: '', rama };
+  }
+
+  // Repartir el límite entre todas las queries (jurídicas + naturales)
+  const limitePorQuery = Math.ceil((params.limite ?? 15) / segmentos.length);
   const results = await Promise.all(
-    params.queries_maps.map((q) =>
+    segmentos.map((s) =>
       scrapeGoogleMaps({
-        query:         `${q} en ${params.ciudad} Ecuador`,
+        query:         `${s.query} en ${params.ciudad} Ecuador`,
         maxResults:    limitePorQuery,
         qualifyWithAi: true,
-        extraData,
-      }).catch((e) => { console.error(`[captacion] query falló: ${q} — ${e.message}`); return null; })
+        personaTipo:   s.tipo,
+        extraData:     { ...baseData, tipo_persona: s.tipo, segmento_query: s.query },
+      })
+        .then((r) => ({ ...r, tipo: s.tipo }))
+        .catch((e) => { console.error(`[captacion] query falló (${s.tipo}): ${s.query} — ${e.message}`); return null; })
     )
   );
 
   const total = results.reduce(
-    (acc, r) => r ? { encontrados: acc.encontrados + r.found, guardados: acc.guardados + r.saved } : acc,
-    { encontrados: 0, guardados: 0 }
+    (acc, r) => {
+      if (!r) return acc;
+      return {
+        encontrados:         acc.encontrados + r.found,
+        guardados:           acc.guardados + r.saved,
+        guardados_juridicas: acc.guardados_juridicas + (r.tipo === 'juridica' ? r.saved : 0),
+        guardados_naturales: acc.guardados_naturales + (r.tipo === 'natural'  ? r.saved : 0),
+      };
+    },
+    { encontrados: 0, guardados: 0, guardados_juridicas: 0, guardados_naturales: 0 }
   );
   // sourceId: usar el de la primera query exitosa
   const sourceId = results.find((r) => r !== null)?.sourceId ?? '';
 
   return {
-    ciudad:      params.ciudad,
-    encontrados: total.encontrados,
-    guardados:   total.guardados,
+    ciudad:              params.ciudad,
+    encontrados:         total.encontrados,
+    guardados:           total.guardados,
+    guardados_juridicas: total.guardados_juridicas,
+    guardados_naturales: total.guardados_naturales,
     sourceId,
     rama,
   };

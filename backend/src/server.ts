@@ -325,14 +325,15 @@ import {
   inferirMercadoDesdeProducto,
   buscarMercadoCiudad,
   CIUDADES_ECUADOR,
+  type SearchParams,
 } from './captacion/search.js';
 
 // Generar estrategia de captación con IA
 app.post('/captacion/estrategia', async (req, reply) => {
-  const b = (req.body ?? {}) as Record<string, any>;
+  const b = (req.body ?? {}) as Partial<SearchParams>;
   if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
   try {
-    const estrategia = await generarEstrategia(b);
+    const estrategia = await generarEstrategia({ ...b, industria: b.industria });
     return reply.code(200).send({ ok: true, estrategia });
   } catch (err) {
     app.log.error({ err }, 'Error en /captacion/estrategia');
@@ -342,10 +343,10 @@ app.post('/captacion/estrategia', async (req, reply) => {
 
 // Buscar negocios en Google Maps
 app.post('/captacion/buscar-maps', async (req, reply) => {
-  const b = (req.body ?? {}) as Record<string, any>;
+  const b = (req.body ?? {}) as Partial<SearchParams>;
   if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
   try {
-    const result = await buscarEnMaps(b);
+    const result = await buscarEnMaps({ ...b, industria: b.industria });
     return reply.code(200).send({ ok: true, ...result });
   } catch (err) {
     app.log.error({ err }, 'Error en /captacion/buscar-maps');
@@ -380,10 +381,10 @@ app.post('/captacion/emails-empresa', async (req, reply) => {
 
 // Generar campaña de donaciones
 app.post('/captacion/donacion', async (req, reply) => {
-  const b = (req.body ?? {}) as Record<string, any>;
+  const b = (req.body ?? {}) as Partial<{ causa: string; organizacion?: string; meta_monto?: number; publico_objetivo?: string }>;
   if (!b.causa) return reply.code(400).send({ ok: false, error: 'Falta el campo causa' });
   try {
-    const campana = await generarCampanaDonacion(b);
+    const campana = await generarCampanaDonacion({ ...b, causa: b.causa });
     return reply.code(200).send({ ok: true, campana });
   } catch (err) {
     app.log.error({ err }, 'Error en /captacion/donacion');
@@ -392,12 +393,15 @@ app.post('/captacion/donacion', async (req, reply) => {
 });
 
 // Buscar mercado por producto — progresivo ciudad por ciudad
-// Solo recopila datos comerciales públicos (Google Maps) — LOPDP Art. 23
+// Solo recopila datos comerciales públicos (Google Maps) — LOPDP Art. 2, 7 num. 7-8 y 9
+// (datos de contacto profesional de fuente pública, base de interés legítimo)
 app.post('/captacion/buscar-mercado', async (req, reply) => {
   const b = (req.body ?? {}) as {
     producto?: string;
     ciudad?: string;
     queries_maps?: string[];
+    queries_juridicas?: string[];
+    queries_naturales?: string[];
     inferir?: boolean;
     limite?: number;
   };
@@ -412,29 +416,38 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
 
   try {
     let mercado: Awaited<ReturnType<typeof inferirMercadoDesdeProducto>> | undefined;
-    let queriesMaps = b.queries_maps;
+    let juridicas = b.queries_juridicas;
+    let naturales = b.queries_naturales;
 
-    if (!queriesMaps || queriesMaps.length === 0) {
+    // Si el frontend no envía los segmentos ni el queries_maps legado, la IA infiere el mercado (jurídicas + naturales)
+    const sinSegmentos = (!juridicas || juridicas.length === 0) && (!naturales || naturales.length === 0)
+      && (!b.queries_maps || b.queries_maps.length === 0);
+    if (sinSegmentos) {
       mercado = await inferirMercadoDesdeProducto(b.producto);
-      queriesMaps = mercado.queries_maps;
+      juridicas = mercado.queries_juridicas;
+      naturales = mercado.queries_naturales;
     }
 
     const resultado = await buscarMercadoCiudad({
-      producto:    b.producto,
-      queries_maps: queriesMaps,
-      ciudad:      b.ciudad,
-      limite:      b.limite ?? 20,
+      producto:          b.producto,
+      queries_juridicas: juridicas,
+      queries_naturales: naturales,
+      queries_maps:      b.queries_maps,  // compatibilidad con clientes viejos
+      ciudad:            b.ciudad,
+      limite:            b.limite ?? 20,
     });
 
     return reply.code(200).send({
-      ok:                true,
-      ciudad:            resultado.ciudad,
-      encontrados:       resultado.encontrados,
-      guardados:         resultado.guardados,
-      sourceId:          resultado.sourceId,
-      rama:              resultado.rama.rama,
-      producto_objetivo: resultado.rama.producto_objetivo,
-      etiqueta_crm:      resultado.rama.etiqueta_crm,
+      ok:                  true,
+      ciudad:              resultado.ciudad,
+      encontrados:         resultado.encontrados,
+      guardados:           resultado.guardados,
+      guardados_juridicas: resultado.guardados_juridicas,
+      guardados_naturales: resultado.guardados_naturales,
+      sourceId:            resultado.sourceId,
+      rama:                resultado.rama.rama,
+      producto_objetivo:   resultado.rama.producto_objetivo,
+      etiqueta_crm:        resultado.rama.etiqueta_crm,
       ...(mercado ? { mercado } : {}),
     });
   } catch (err) {
