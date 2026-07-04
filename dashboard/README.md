@@ -17,7 +17,7 @@ con la `service_role` (nunca expone llaves al navegador).
 ```bash
 cd dashboard
 cp .env.example .env.local     # Windows: copy .env.example .env.local
-# edita .env.local con SUPABASE_URL y SUPABASE_SERVICE_KEY
+# edita .env.local con tus valores reales
 npm install
 npm run dev
 ```
@@ -28,9 +28,18 @@ Abre http://localhost:3001
 
 | Variable | Para qué |
 |---|---|
+| `NEXT_PUBLIC_BACKEND_URL` | URL pública del backend — se incrusta en el bundle en build-time |
+| `BACKEND_URL` | URL del backend — usada en runtime, server-side |
 | `SUPABASE_URL` | URL de tu proyecto Supabase |
 | `SUPABASE_SERVICE_KEY` | service_role (secreta, solo servidor) |
-| `DASHBOARD_PASSWORD` | (futuro) clave de acceso al panel |
+| `DASHBOARD_PASSWORD` | Clave de acceso al panel (login con contraseña) |
+| `SESSION_SECRET` | Cadena aleatoria larga para firmar la cookie de sesión |
+| `WEBAUTHN_RP_ID` | Dominio del dashboard sin protocolo (ej. `panel.tudominio.com`) |
+| `WEBAUTHN_ORIGIN` | Origen completo con protocolo (ej. `https://panel.tudominio.com`) |
 
-> ⚠️ Pendiente Fase 3: login con contraseña/roles. Hoy el panel asume red privada.
-> No lo publiques en internet abierto sin agregar autenticación.
+## Login
+
+El panel tiene login con contraseña (`/login`) y biometría/passkeys vía WebAuthn
+(huella o rostro, según el dispositivo). `WEBAUTHN_RP_ID` y `WEBAUTHN_ORIGIN` deben
+coincidir con el dominio real donde esté publicado el panel — si no, la biometría no
+va a funcionar.

@@ -35,7 +35,9 @@ Coolify inyecta `PORT` automáticamente; el server lo lee en `config.ts`.
 | `RESEND_API_KEY` | ⬜ 🔒 | Email outreach |
 | `RESEND_FROM_EMAIL` | ⬜ | Remitente verificado |
 | `GOOGLE_PLACES_API_KEY` | ⬜ 🔒 | Scraping de negocios |
-| `CRON_SECRET` | ✅ 🔒 | Protege `POST /cron/run-sequences` |
+| `DASHBOARD_URL` | ⬜ | Solo para el link en la página raíz `/` |
+| `LANDING_URL` | ⬜ | Solo para el link en la página raíz `/` |
+| `CRON_SECRET` | ✅ 🔒 | Protege `POST /cron/run-sequences` y `POST /cron/run-prospecting` |
 
 **Healthcheck:** `GET /health` (ya configurado en el Dockerfile y disponible en Coolify).
 
@@ -67,15 +69,26 @@ Sitio estático servido por nginx en el puerto 80. Solo asigna el dominio.
 
 ---
 
-## 4) Cron del motor de seguimiento
+## 4) Cron — hay DOS motores, configura los dos
 
 En Render se usaba un cron externo (cron-job.org) que llamaba cada 10 min a
 `POST /cron/run-sequences` con la cabecera `x-cron-secret: <CRON_SECRET>`.
 
-En Coolify usa **Scheduled Tasks** (sobre el recurso del backend) o mantén el cron externo:
+Pero el backend expone **dos** endpoints de cron, ambos protegidos con el mismo
+`CRON_SECRET`, y los dos hay que programarlos — si solo configuras el primero, la
+prospección activa (scraping + outreach automático de prospectos) nunca corre:
+
+| Endpoint | Motor | Qué hace |
+|----------|-------|----------|
+| `POST /cron/run-sequences` | Seguimiento | Avanza las secuencias automáticas de mensajes a clientes ya en el CRM |
+| `POST /cron/run-prospecting` | Prospección activa | Inscribe prospectos nuevos y envía el outreach inicial |
+
+En Coolify usa **Scheduled Tasks** (sobre el recurso del backend) o mantén el cron externo, uno por endpoint:
 
 ```
 */10 * * * *   curl -fsS -X POST http://<backend-interno>:3000/cron/run-sequences \
+                 -H "x-cron-secret: $CRON_SECRET"
+*/10 * * * *   curl -fsS -X POST http://<backend-interno>:3000/cron/run-prospecting \
                  -H "x-cron-secret: $CRON_SECRET"
 ```
 
