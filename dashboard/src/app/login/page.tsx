@@ -1,5 +1,6 @@
 import { login } from './actions';
 import BiometricButton from './BiometricButton';
+import PasswordInput from './PasswordInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
           <label>Correo electrónico</label>
           <input name="email" type="email" required placeholder="tucorreo@ejemplo.com" />
           <label>Contraseña</label>
-          <input name="password" type="password" required placeholder="••••••••" />
+          <PasswordInput />
           <button type="submit">Entrar →</button>
         </form>
       </div>
