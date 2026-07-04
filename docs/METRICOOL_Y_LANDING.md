@@ -18,10 +18,10 @@ hosting. Captura nombre, WhatsApp/teléfono, email y mensaje.
 
 **Antes de publicarla**, edita esta línea con la URL de tu backend ya desplegado:
 ```js
-const BACKEND_URL = "http://localhost:3000";   // cámbialo por tu URL de Render
+const BACKEND_URL = "http://localhost:3000";   // cámbialo por la URL de tu backend en producción
 ```
 
-Dónde publicarla (gratis): Render (static site), Netlify, Vercel, o GitHub Pages.
+Dónde publicarla (gratis): Netlify, Vercel, o GitHub Pages.
 Luego, en Metricool, pones ese enlace en tu "link en bio", en los botones de tus anuncios
 y en tus publicaciones. Todo lead cae automáticamente en el CRM, clasificado por IA.
 

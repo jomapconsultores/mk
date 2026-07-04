@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 
-const BACKEND = 'https://marketing-map-backend.onrender.com';
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
 
 const CSS = `
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

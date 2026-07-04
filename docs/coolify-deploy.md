@@ -83,8 +83,8 @@ En Coolify usa **Scheduled Tasks** (sobre el recurso del backend) o mantén el c
 
 ## 5) Tras desplegar — actualizar URLs cruzadas
 
-- En `backend/src/server.ts` la página raíz enlaza a `*.onrender.com`. Actualiza esos
-  enlaces a los nuevos dominios de Coolify (cosmético, no rompe nada).
+- `backend/src/server.ts` lee `DASHBOARD_URL` y `LANDING_URL` (opcionales) para los enlaces
+  de su página raíz informativa. Configúralas con los dominios finales de Coolify.
 - Reapunta el webhook de WhatsApp/Meta a la nueva URL del backend.
 - Actualiza `NEXT_PUBLIC_BACKEND_URL` / `BACKEND_URL` del dashboard a la URL final del backend.
 
@@ -92,5 +92,4 @@ En Coolify usa **Scheduled Tasks** (sobre el recurso del backend) o mantén el c
 
 ## 6) Limpieza
 
-- Cuando confirmes que todo funciona en Coolify, puedes eliminar `render.yaml`.
 - 🔑 **Rota el API token de Coolify** que se usó para automatizar el despliegue.

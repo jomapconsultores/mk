@@ -5,7 +5,7 @@ crear la app en Meta y darme 2 datos. Estos son los pasos.
 
 ## Datos que ya dejé listos
 
-- **Callback URL (webhook):** `https://marketing-map-backend.onrender.com/webhooks/whatsapp`
+- **Callback URL (webhook):** `https://<tu-dominio-backend>/webhooks/whatsapp`
 - **Verify token:** `d4423a38fcb055efaa69ade41a9ce4b9`  (ya está puesto en el backend)
 
 ## Pasos en Meta (tú)
@@ -18,7 +18,7 @@ crear la app en Meta y darme 2 datos. Estos son los pasos.
    - **Phone number ID** → este es `WHATSAPP_PHONE_ID`.
 5. Configura el **webhook**:
    - En WhatsApp → **Configuration** → **Edit** en Webhook.
-   - **Callback URL:** `https://marketing-map-backend.onrender.com/webhooks/whatsapp`
+   - **Callback URL:** `https://<tu-dominio-backend>/webhooks/whatsapp`
    - **Verify token:** `d4423a38fcb055efaa69ade41a9ce4b9`
    - Guarda. Debe decir verificado ✅.
    - En **Webhook fields**, suscríbete a **messages**.
@@ -27,13 +27,13 @@ crear la app en Meta y darme 2 datos. Estos son los pasos.
 
 ## Lo que me das a mí
 
-Pásame estos dos (yo los pongo en Render y probamos):
+Pásame estos dos (yo los pongo en el servidor y probamos):
 - `WHATSAPP_TOKEN` (el temporary access token)
 - `WHATSAPP_PHONE_ID`
 
 ## Después (yo)
 
-- Pongo las 2 variables en el backend (Render) por API.
+- Pongo las 2 variables en el backend por API.
 - Probamos: te escribes a ti mismo al número de prueba y el sistema responde con IA,
   clasifica el lead y, si dices "STOP", te da de baja.
 

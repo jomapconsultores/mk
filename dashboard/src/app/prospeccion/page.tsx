@@ -5,7 +5,7 @@ import QualifyButton from './QualifyButton';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? 'https://marketing-map-backend.onrender.com';
+const BACKEND_URL = process.env.BACKEND_URL ?? '';
 
 const STATUS_LABEL: Record<string, string> = {
   new:        'Nuevo',

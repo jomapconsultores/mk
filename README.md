@@ -42,8 +42,7 @@ Marketing_MAP/
 - [x] Motor de secuencias de seguimiento (inscribe, respeta baja/horario, redacta con IA o plantilla)
 - [x] Panel de control (Next.js): tablero, clientes, conversaciones, productos, seguimientos
 - [x] Captación web: landing page + endpoint `/capture` (probado end-to-end con IA)
-- [x] Preparado para despliegue en Render (`render.yaml` + guía + cron de seguimiento)
-- [ ] Despliegue en vivo (subir a GitHub + aplicar blueprint) — ver [`docs/DESPLIEGUE_RENDER.md`](docs/DESPLIEGUE_RENDER.md)
+- [x] Desplegado en Coolify (ver [`docs/coolify-deploy.md`](docs/coolify-deploy.md))
 - [ ] Integración Instagram / Facebook / Email / WhatsApp (Fase 2)
 - [ ] Login del panel + roles (Fase 3)
 

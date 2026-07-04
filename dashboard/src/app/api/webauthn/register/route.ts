@@ -8,8 +8,8 @@ import { getAdmin } from '@/lib/supabase-admin';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
 
 const RP_NAME = 'Marketing MAP';
-const RP_ID   = process.env.WEBAUTHN_RP_ID   ?? 'marketing-map.onrender.com';
-const ORIGIN  = process.env.WEBAUTHN_ORIGIN  ?? 'https://marketing-map.onrender.com';
+const RP_ID   = process.env.WEBAUTHN_RP_ID   ?? 'localhost';
+const ORIGIN  = process.env.WEBAUTHN_ORIGIN  ?? 'http://localhost:3000';
 const CH_COOKIE = 'wbn_ch';
 
 /** POST → genera opciones de registro */

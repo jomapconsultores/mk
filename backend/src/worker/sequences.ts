@@ -1,7 +1,7 @@
 import { runEngineOnce } from '../sequences/engine.js';
 
-// Cada cuanto revisar (por defecto cada 5 minutos). En Render puede ser un
-// "Background Worker" con este proceso, o un Cron Job que corra `runEngineOnce`.
+// Cada cuanto revisar (por defecto cada 5 minutos). Puede correr como proceso
+// en segundo plano, o como un cron job que ejecute `runEngineOnce`.
 const INTERVAL_MS = Number(process.env.SEQUENCE_INTERVAL_MS ?? 5 * 60 * 1000);
 const RUN_ONCE = process.argv.includes('--once');
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'https://marketing-map-backend.onrender.com';
+const API = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
 
 // ─────────────────────────────────────────────────────────────
 // Ciudades en orden progresivo (Cuenca primero — base del cliente)

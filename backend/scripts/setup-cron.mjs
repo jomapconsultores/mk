@@ -3,7 +3,7 @@
 //
 // Uso (variables de entorno):
 //   PGHOST, PGUSER, PGPASSWORD   -> conexion a la BD (pooler de Supabase)
-//   BACKEND_URL                  -> ej. https://marketing-map-backend.onrender.com
+//   BACKEND_URL                  -> ej. https://tu-backend.tudominio.com
 //   CRON_SECRET                  -> el mismo CRON_SECRET del backend
 import pg from 'pg';
 

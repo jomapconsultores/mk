@@ -9,5 +9,5 @@ export default async function RootPage() {
   const email = await verifySession(token, process.env.SESSION_SECRET ?? '');
 
   if (email) redirect('/leads');
-  redirect('https://marketing-map-landing.onrender.com');
+  redirect(process.env.LANDING_URL ?? '/');
 }
