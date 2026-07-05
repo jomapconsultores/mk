@@ -11,27 +11,23 @@ const SENDER_LABEL: Record<string, string> = {
 export default async function LeadDetail({ params }: { params: { id: string } }) {
   const db = getAdmin();
 
-  const { data: c } = await db
-    .from('contacts')
-    .select('*')
-    .eq('id', params.id)
-    .maybeSingle();
+  const [{ data: c }, { data: messages }, { data: events }] = await Promise.all([
+    db.from('contacts').select('*').eq('id', params.id).maybeSingle(),
+    db
+      .from('messages')
+      .select('id, direction, body, sender_type, ai_intent, created_at')
+      .eq('contact_id', params.id)
+      .order('created_at', { ascending: true })
+      .limit(200),
+    db
+      .from('events')
+      .select('type, created_at')
+      .eq('contact_id', params.id)
+      .order('created_at', { ascending: false })
+      .limit(8),
+  ]);
 
   if (!c) return <p className="empty">Cliente no encontrado.</p>;
-
-  const { data: messages } = await db
-    .from('messages')
-    .select('id, direction, body, sender_type, ai_intent, created_at')
-    .eq('contact_id', params.id)
-    .order('created_at', { ascending: true })
-    .limit(200);
-
-  const { data: events } = await db
-    .from('events')
-    .select('type, created_at')
-    .eq('contact_id', params.id)
-    .order('created_at', { ascending: false })
-    .limit(8);
 
   const name = c.display_name || c.full_name || c.phone || 'Sin nombre';
 

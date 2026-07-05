@@ -39,12 +39,15 @@ function Bars({ rows, empty }: { rows: Row[]; empty: string }) {
 
 export default async function Tendencias() {
   const db = getAdmin();
-  const { data: contacts } = await db
-    .from('contacts')
-    .select('created_at, source_channel, interested_product_id, marketing_opted_out, stage, interest_level')
-    .limit(5000);
-  const { data: products } = await db.from('products').select('id, name');
-  const { data: msgs } = await db.from('messages').select('ai_intent').eq('direction', 'inbound').limit(5000);
+  const [{ data: contacts }, { data: products }, { data: msgs }, trends] = await Promise.all([
+    db
+      .from('contacts')
+      .select('created_at, source_channel, interested_product_id, marketing_opted_out, stage, interest_level')
+      .limit(5000),
+    db.from('products').select('id, name'),
+    db.from('messages').select('ai_intent').eq('direction', 'inbound').limit(5000),
+    getTrends('EC'),
+  ]);
 
   const C = contacts ?? [];
   const total = C.length;
@@ -57,7 +60,6 @@ export default async function Tendencias() {
   const bySource = countBy(C, (c) => CHANNEL_LABEL[c.source_channel ?? 'desconocido'] ?? c.source_channel ?? 'Desconocido');
   const byProduct = countBy(C.filter((c) => c.interested_product_id), (c) => prodName[c.interested_product_id as string] ?? 'Otro');
   const byIntent = countBy((msgs ?? []).filter((m) => m.ai_intent), (m) => m.ai_intent as string);
-  const trends = await getTrends('EC');
 
   // Leads de los últimos 14 días
   const days: { d: string; n: number }[] = [];
