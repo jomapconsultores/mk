@@ -28,10 +28,21 @@ app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body,
   }
 });
 
-// CORS abierto para el endpoint publico de captura (formularios en cualquier dominio).
+// CORS: permite solo la landing (formulario de /capture) y el dashboard (llamadas
+// desde el navegador a /captacion/*, /prospecting/*, etc.) — antes era '*' para
+// cualquier origen en TODAS las rutas, incluyendo endpoints internos de captación.
+const ALLOWED_ORIGINS = (
+  process.env.CORS_ORIGINS ??
+  'https://marketing.pensamiento-libre.org,https://panel.marketing.pensamiento-libre.org'
+).split(',').map((o) => o.trim()).filter(Boolean);
+
 app.addHook('onRequest', async (req, reply) => {
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    reply.header('Access-Control-Allow-Origin', origin);
+    reply.header('Vary', 'Origin');
+  }
+  reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   reply.header('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
