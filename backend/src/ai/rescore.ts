@@ -7,11 +7,18 @@ import { db } from '../db.js';
 export async function rescoreContact(contactId: string): Promise<{ lead_score: number; stage: string }> {
   const { data: contact } = await db
     .from('contacts')
-    .select('id, ai_summary')
+    .select('id, stage, ai_summary')
     .eq('id', contactId)
     .maybeSingle();
 
   if (!contact) throw new Error('Contacto no encontrado');
+
+  // Una venta cerrada o un lead perdido no deben recalificarse en base a mensajes
+  // viejos: si la IA fallara, el fallback neutro de classifyMessage() (stage:'new',
+  // lead_score:0) borraría ese trabajo ya hecho.
+  if (contact.stage === 'customer' || contact.stage === 'lost') {
+    throw new Error(`No se puede recalcular un contacto en etapa "${contact.stage}" (venta cerrada o lead perdido).`);
+  }
 
   const [{ catalog }, history] = await Promise.all([
     getSalesContext(),

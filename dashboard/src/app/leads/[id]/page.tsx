@@ -121,7 +121,7 @@ export default async function LeadDetail({ params }: { params: { id: string } })
               <button type="submit">Guardar etapa</button>
             </form>
             <div style={{ marginTop: 12 }}>
-              <RescoreButton contactId={c.id} backendUrl={BACKEND_URL} />
+              <RescoreButton contactId={c.id} stage={c.stage} backendUrl={BACKEND_URL} />
               <CallButton contactId={c.id} backendUrl={BACKEND_URL} />
             </div>
           </div>

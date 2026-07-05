@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER } from '@/lib/format';
 import { moveContactStage } from './actions';
@@ -55,7 +55,7 @@ function Card({ contact, backendUrl }: { contact: KanbanContact; backendUrl: str
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{contact.source_channel}</div>
       )}
       <div style={{ marginTop: 8 }}>
-        <RescoreButton contactId={contact.id} backendUrl={backendUrl} />
+        <RescoreButton contactId={contact.id} stage={contact.stage} backendUrl={backendUrl} />
         <CallButton contactId={contact.id} backendUrl={backendUrl} />
       </div>
     </div>
@@ -108,6 +108,15 @@ export default function KanbanBoard({
   backendUrl: string;
 }) {
   const [board, setBoard] = useState(contactsByStage);
+  const [dragError, setDragError] = useState<string | null>(null);
+
+  // Resincroniza con los datos frescos del servidor cada vez que page.tsx se
+  // vuelve a renderizar (ej. tras el revalidatePath de moveContactStage, o si
+  // otro proceso cambió el stage) — sin esto, useState solo toma el valor
+  // inicial y el tablero queda desincronizado de la base de datos para siempre.
+  useEffect(() => {
+    setBoard(contactsByStage);
+  }, [contactsByStage]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -125,6 +134,9 @@ export default function KanbanBoard({
     if (!fromStage || fromStage === newStage) return;
     const stageBefore = fromStage;
 
+    setDragError(null);
+    const previousBoard = board;
+
     setBoard((prev) => {
       const contact = prev[stageBefore].find((c) => c.id === contactId);
       if (!contact) return prev;
@@ -135,11 +147,20 @@ export default function KanbanBoard({
       };
     });
 
-    moveContactStage(contactId, newStage);
+    // Si el guardado falla (permisos, RLS, fila borrada), se revierte el
+    // movimiento optimista y se avisa — antes esto era fire-and-forget y el
+    // tablero podía quedar mostrando una etapa que nunca se guardó.
+    moveContactStage(contactId, newStage).then((result) => {
+      if (!result.ok) {
+        setBoard(previousBoard);
+        setDragError(result.error ?? 'No se pudo mover el cliente de etapa.');
+      }
+    });
   }
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
+      {dragError && <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 10 }}>{dragError}</p>}
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
         {STAGE_ORDER.map((stage) => (
           <Column key={stage} stage={stage} contacts={board[stage] ?? []} backendUrl={backendUrl} />
