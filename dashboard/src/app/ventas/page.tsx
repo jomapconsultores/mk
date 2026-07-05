@@ -4,7 +4,11 @@ import KanbanBoard, { type KanbanContact } from './KanbanBoard';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? '';
+// Proxy autenticado (server-side) hacia el backend real — ver
+// src/app/api/backend/[...path]/route.ts. CallButton/RescoreButton llaman
+// desde el navegador a esta ruta local, nunca al backend real directo (antes
+// /calls/initiate y /leads/rescore no tenían ninguna autenticación).
+const BACKEND_URL = '/api/backend';
 
 export default async function VentasPage() {
   const db = getAdmin();

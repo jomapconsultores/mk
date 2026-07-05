@@ -53,4 +53,8 @@ export const config = {
 
   // Secreto para proteger el endpoint de cron que dispara el seguimiento.
   cronSecret: process.env.CRON_SECRET ?? '',
+
+  // Secreto compartido con el proxy server-side del dashboard (/api/backend/*)
+  // para los endpoints que cuestan dinero (IA, Twilio) o exponen el CRM.
+  internalApiSecret: process.env.INTERNAL_API_SECRET ?? '',
 };

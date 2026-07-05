@@ -2,7 +2,10 @@
 
 import { useState, useRef, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
+// Proxy autenticado (server-side) hacia el backend real — ver
+// src/app/api/backend/[...path]/route.ts. El navegador ya no llama al
+// backend directo (antes estos endpoints no tenían ninguna autenticación).
+const API = '/api/backend';
 
 // ─────────────────────────────────────────────────────────────
 // Ciudades en orden progresivo (Cuenca primero — base del cliente)

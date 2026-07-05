@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import multipart from '@fastify/multipart';
 import formbody from '@fastify/formbody';
 import websocketPlugin from '@fastify/websocket';
@@ -54,6 +55,21 @@ app.addHook('onRequest', async (req, reply) => {
   reply.header('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') reply.code(204).send();
 });
+
+// Autenticacion interna: protege todo endpoint que cuesta dinero (IA, Twilio,
+// scraping) o expone datos del CRM. El dashboard llama a estos por su propio
+// proxy server-side (/api/backend/*), nunca directo desde el navegador, asi
+// que el secreto nunca llega al bundle del cliente. Antes NINGUNO de estos
+// endpoints tenia proteccion — cualquiera con la URL del backend podia
+// gastar cuota de IA/Twilio o leer/escribir el CRM sin autenticarse.
+function requireInternalAuth(req: FastifyRequest, reply: FastifyReply): boolean {
+  const secret = (req.headers['x-internal-secret'] as string) ?? '';
+  if (!config.internalApiSecret || secret !== config.internalApiSecret) {
+    reply.code(401).send({ ok: false, error: 'No autorizado' });
+    return false;
+  }
+  return true;
+}
 
 // Raiz: pagina informativa (el backend es una API, no un sitio web).
 app.get('/', async (_req, reply) => {
@@ -164,6 +180,7 @@ app.post('/cron/run-prospecting', async (req, reply) => {
 
 // Importar prospectos desde CSV (texto plano en el body)
 app.post('/prospecting/import-csv', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { csv?: string; source_name?: string; qualify?: boolean };
   if (!b.csv) return reply.code(400).send({ ok: false, error: 'Falta el campo csv' });
   try {
@@ -180,6 +197,7 @@ app.post('/prospecting/import-csv', async (req, reply) => {
 
 // Disparar calificación IA de prospectos pendientes
 app.post('/prospecting/qualify', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { source_id?: string; batch_size?: number };
   try {
     const stats = await qualifyAllNew(b.source_id, b.batch_size ?? 20);
@@ -192,6 +210,7 @@ app.post('/prospecting/qualify', async (req, reply) => {
 
 // Scraping de Google Maps
 app.post('/prospecting/scrape-google', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { query?: string; max_results?: number; qualify?: boolean };
   if (!b.query) return reply.code(400).send({ ok: false, error: 'Falta el campo query' });
   try {
@@ -209,6 +228,7 @@ app.post('/prospecting/scrape-google', async (req, reply) => {
 // Listar prospectos con filtros
 // ── Recalificación manual de un lead con IA (botón "Recalcular score") ─────
 app.post('/leads/rescore', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { contact_id?: string };
   if (!b.contact_id) return reply.code(400).send({ ok: false, error: 'Falta contact_id' });
 
@@ -222,6 +242,7 @@ app.post('/leads/rescore', async (req, reply) => {
 });
 
 app.get('/prospecting/prospects', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const q = (req.query ?? {}) as { status?: string; limit?: string };
   const { data, error } = await (await import('./db.js')).db
     .from('prospects')
@@ -235,6 +256,7 @@ app.get('/prospecting/prospects', async (req, reply) => {
 
 // ── Importación inteligente con IA (PDF / Excel / CSV) ─────────────────────
 app.post('/prospecting/import-smart', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   let fileBuffer: Buffer | null = null;
   let filename = 'archivo';
   let mimetype = 'text/plain';
@@ -365,6 +387,7 @@ import {
 
 // Generar estrategia de captación con IA
 app.post('/captacion/estrategia', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as Partial<SearchParams>;
   if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
   try {
@@ -378,6 +401,7 @@ app.post('/captacion/estrategia', async (req, reply) => {
 
 // Buscar negocios en Google Maps
 app.post('/captacion/buscar-maps', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as Partial<SearchParams>;
   if (!b.industria) return reply.code(400).send({ ok: false, error: 'Falta el campo industria' });
   try {
@@ -391,6 +415,7 @@ app.post('/captacion/buscar-maps', async (req, reply) => {
 
 // Analizar texto pegado (LinkedIn, directorios, redes)
 app.post('/captacion/analizar-texto', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { texto?: string; fuente?: string };
   if (!b.texto) return reply.code(400).send({ ok: false, error: 'Falta el campo texto' });
   try {
@@ -404,6 +429,7 @@ app.post('/captacion/analizar-texto', async (req, reply) => {
 
 // Descubrir patrones de email de una empresa
 app.post('/captacion/emails-empresa', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { empresa?: string; dominio?: string };
   if (!b.empresa) return reply.code(400).send({ ok: false, error: 'Falta el campo empresa' });
   try {
@@ -416,6 +442,7 @@ app.post('/captacion/emails-empresa', async (req, reply) => {
 
 // Generar campaña de donaciones
 app.post('/captacion/donacion', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as Partial<{ causa: string; organizacion?: string; meta_monto?: number; publico_objetivo?: string }>;
   if (!b.causa) return reply.code(400).send({ ok: false, error: 'Falta el campo causa' });
   try {
@@ -431,6 +458,7 @@ app.post('/captacion/donacion', async (req, reply) => {
 // Solo recopila datos comerciales públicos (Google Maps) — LOPDP Art. 2, 7 num. 7-8 y 9
 // (datos de contacto profesional de fuente pública, base de interés legítimo)
 app.post('/captacion/buscar-mercado', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as {
     producto?: string;
     ciudad?: string;
@@ -492,12 +520,14 @@ app.post('/captacion/buscar-mercado', async (req, reply) => {
 });
 
 // Lista de ciudades disponibles para búsqueda progresiva
-app.get('/captacion/ciudades', async (_req, reply) => {
+app.get('/captacion/ciudades', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   return reply.code(200).send({ ok: true, ciudades: CIUDADES_ECUADOR });
 });
 
 // Estadísticas del módulo de captación
-app.get('/captacion/stats', async (_req, reply) => {
+app.get('/captacion/stats', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   try {
     const stats = await getCaptacionStats();
     return reply.code(200).send({ ok: true, ...stats });
@@ -507,7 +537,8 @@ app.get('/captacion/stats', async (_req, reply) => {
 });
 
 // Stats de prospección para el dashboard
-app.get('/prospecting/stats', async (_req, reply) => {
+app.get('/prospecting/stats', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const { db: _db } = await import('./db.js');
   const [byStatus, campaigns, recentSent] = await Promise.all([
     _db.from('prospects').select('status').then(({ data }) => {
@@ -528,6 +559,7 @@ app.get('/prospecting/stats', async (_req, reply) => {
 
 // Inicia una llamada saliente con IA para un contacto existente.
 app.post('/calls/initiate', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
   const b = (req.body ?? {}) as { contact_id?: string };
   if (!b.contact_id) return reply.code(400).send({ ok: false, error: 'Falta el campo contact_id' });
   try {
