@@ -10,6 +10,7 @@ const ADQUISICION = [
 
 const GESTION = [
   { href: '/',           ico: '📊', label: 'Tablero' },
+  { href: '/ventas',     ico: '🧭', label: 'Pipeline de ventas' },
   { href: '/sequences',  ico: '🔁', label: 'Seguimientos' },
   { href: '/tendencias', ico: '📈', label: 'Tendencias' },
   { href: '/audiencias', ico: '🎯', label: 'Audiencias' },
