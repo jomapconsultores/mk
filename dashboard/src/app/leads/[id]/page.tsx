@@ -1,8 +1,11 @@
 import { getAdmin } from '@/lib/supabase-admin';
 import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, STAGE_ORDER, fmtDate } from '@/lib/format';
 import { optOut, updateStage, deleteContact } from './actions';
+import RescoreButton from '../../ventas/RescoreButton';
 
 export const dynamic = 'force-dynamic';
+
+const BACKEND_URL = process.env.BACKEND_URL ?? '';
 
 const SENDER_LABEL: Record<string, string> = {
   ai: '🤖 IA', human: '🧑 Asesor', sequence: '🔁 Seguimiento', system: '⚙️ Sistema',
@@ -96,6 +99,9 @@ export default async function LeadDetail({ params }: { params: { id: string } })
               </select>
               <button type="submit">Guardar etapa</button>
             </form>
+            <div style={{ marginTop: 12 }}>
+              <RescoreButton contactId={c.id} backendUrl={BACKEND_URL} />
+            </div>
           </div>
           <div>
             <p style={{ marginBottom: 8, color: 'var(--muted)' }}>Borrar el trabajo inconcluso (no se puede deshacer).</p>

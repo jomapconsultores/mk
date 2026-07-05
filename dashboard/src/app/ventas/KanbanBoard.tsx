@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER } from '@/lib/format';
 import { moveContactStage } from './actions';
+import RescoreButton from './RescoreButton';
 
 export interface KanbanContact {
   id: string;
@@ -17,7 +18,7 @@ export interface KanbanContact {
   last_inbound_at: string | null;
 }
 
-function Card({ contact }: { contact: KanbanContact }) {
+function Card({ contact, backendUrl }: { contact: KanbanContact; backendUrl: string }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: contact.id });
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: isDragging ? 10 : undefined }
@@ -52,11 +53,22 @@ function Card({ contact }: { contact: KanbanContact }) {
       {contact.source_channel && (
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{contact.source_channel}</div>
       )}
+      <div style={{ marginTop: 8 }}>
+        <RescoreButton contactId={contact.id} backendUrl={backendUrl} />
+      </div>
     </div>
   );
 }
 
-function Column({ stage, contacts }: { stage: string; contacts: KanbanContact[] }) {
+function Column({
+  stage,
+  contacts,
+  backendUrl,
+}: {
+  stage: string;
+  contacts: KanbanContact[];
+  backendUrl: string;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
 
   return (
@@ -79,7 +91,7 @@ function Column({ stage, contacts }: { stage: string; contacts: KanbanContact[] 
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{contacts.length}</span>
       </div>
       {contacts.map((c) => (
-        <Card key={c.id} contact={c} />
+        <Card key={c.id} contact={c} backendUrl={backendUrl} />
       ))}
       {contacts.length === 0 && <p style={{ fontSize: 12, color: 'var(--muted)' }}>Sin clientes</p>}
     </div>
@@ -88,8 +100,10 @@ function Column({ stage, contacts }: { stage: string; contacts: KanbanContact[] 
 
 export default function KanbanBoard({
   contactsByStage,
+  backendUrl,
 }: {
   contactsByStage: Record<string, KanbanContact[]>;
+  backendUrl: string;
 }) {
   const [board, setBoard] = useState(contactsByStage);
 
@@ -126,7 +140,7 @@ export default function KanbanBoard({
     <DndContext onDragEnd={handleDragEnd}>
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
         {STAGE_ORDER.map((stage) => (
-          <Column key={stage} stage={stage} contacts={board[stage] ?? []} />
+          <Column key={stage} stage={stage} contacts={board[stage] ?? []} backendUrl={backendUrl} />
         ))}
       </div>
     </DndContext>

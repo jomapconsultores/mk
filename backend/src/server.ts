@@ -188,6 +188,20 @@ app.post('/prospecting/scrape-google', async (req, reply) => {
 });
 
 // Listar prospectos con filtros
+// ── Recalificación manual de un lead con IA (botón "Recalcular score") ─────
+app.post('/leads/rescore', async (req, reply) => {
+  const b = (req.body ?? {}) as { contact_id?: string };
+  if (!b.contact_id) return reply.code(400).send({ ok: false, error: 'Falta contact_id' });
+
+  try {
+    const { rescoreContact } = await import('./ai/rescore.js');
+    const result = await rescoreContact(b.contact_id);
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
 app.get('/prospecting/prospects', async (req, reply) => {
   const q = (req.query ?? {}) as { status?: string; limit?: string };
   const { data, error } = await (await import('./db.js')).db

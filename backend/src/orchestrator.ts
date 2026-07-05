@@ -23,7 +23,7 @@ function isStopWord(text: string): boolean {
 }
 
 /** Recupera los últimos N mensajes del contacto como texto plano para contexto. */
-async function getHistory(contactId: string, limit = 8): Promise<string> {
+export async function getHistory(contactId: string, limit = 8): Promise<string> {
   const { data } = await db
     .from('messages')
     .select('direction, body, created_at')
