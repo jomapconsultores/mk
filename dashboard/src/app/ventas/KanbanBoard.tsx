@@ -5,6 +5,7 @@ import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER } from '@/lib/format';
 import { moveContactStage } from './actions';
 import RescoreButton from './RescoreButton';
+import CallButton from './CallButton';
 
 export interface KanbanContact {
   id: string;
@@ -55,6 +56,7 @@ function Card({ contact, backendUrl }: { contact: KanbanContact; backendUrl: str
       )}
       <div style={{ marginTop: 8 }}>
         <RescoreButton contactId={contact.id} backendUrl={backendUrl} />
+        <CallButton contactId={contact.id} backendUrl={backendUrl} />
       </div>
     </div>
   );

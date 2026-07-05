@@ -2,6 +2,7 @@ import { getAdmin } from '@/lib/supabase-admin';
 import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, STAGE_ORDER, fmtDate } from '@/lib/format';
 import { optOut, updateStage, deleteContact } from './actions';
 import RescoreButton from '../../ventas/RescoreButton';
+import CallButton from '../../ventas/CallButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,19 @@ const BACKEND_URL = process.env.BACKEND_URL ?? '';
 const SENDER_LABEL: Record<string, string> = {
   ai: '🤖 IA', human: '🧑 Asesor', sequence: '🔁 Seguimiento', system: '⚙️ Sistema',
 };
+
+interface CallTranscriptTurn {
+  role: string;
+  text: string;
+  at?: string;
+}
+
+function fmtDuration(seconds: number | null): string {
+  if (!seconds && seconds !== 0) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 export default async function LeadDetail({ params }: { params: { id: string } }) {
   const db = getAdmin();
@@ -35,6 +49,13 @@ export default async function LeadDetail({ params }: { params: { id: string } })
     .eq('contact_id', params.id)
     .order('created_at', { ascending: false })
     .limit(8);
+
+  const { data: calls } = await db
+    .from('calls')
+    .select('id, status, outcome, summary, duration_seconds, transcript, created_at')
+    .eq('contact_id', params.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const name = c.display_name || c.full_name || c.phone || 'Sin nombre';
 
@@ -101,6 +122,7 @@ export default async function LeadDetail({ params }: { params: { id: string } })
             </form>
             <div style={{ marginTop: 12 }}>
               <RescoreButton contactId={c.id} backendUrl={BACKEND_URL} />
+              <CallButton contactId={c.id} backendUrl={BACKEND_URL} />
             </div>
           </div>
           <div>
@@ -125,6 +147,40 @@ export default async function LeadDetail({ params }: { params: { id: string } })
                   {m.direction === 'inbound' ? '⬅️ Cliente' : SENDER_LABEL[m.sender_type ?? ''] ?? 'Saliente'}
                   {m.ai_intent ? ` · ${m.ai_intent}` : ''} · {fmtDate(m.created_at)}
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="section">
+        <h3>Llamadas</h3>
+        {(calls ?? []).length === 0 ? (
+          <p style={{ color: 'var(--muted)' }}>Aún no hay llamadas con este cliente.</p>
+        ) : (
+          <div>
+            {(calls ?? []).map((call) => (
+              <div key={call.id} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                <p style={{ marginBottom: 6 }}>
+                  <strong>{call.status}</strong>
+                  {' · '}Duración: {fmtDuration(call.duration_seconds)}
+                  {' · '}{fmtDate(call.created_at)}
+                  {call.outcome ? ` · ${call.outcome}` : ''}
+                </p>
+                {call.summary && (
+                  <p style={{ marginBottom: 8, color: 'var(--muted)' }}>
+                    <strong style={{ color: 'var(--text)' }}>Resumen:</strong> {call.summary}
+                  </p>
+                )}
+                {Array.isArray(call.transcript) && call.transcript.length > 0 && (
+                  <div>
+                    {(call.transcript as CallTranscriptTurn[]).map((turn, i) => (
+                      <div key={i} className={`msg ${turn.role === 'assistant' ? 'outbound' : 'inbound'}`}>
+                        {turn.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

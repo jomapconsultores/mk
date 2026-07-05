@@ -38,6 +38,10 @@ Coolify inyecta `PORT` automáticamente; el server lo lee en `config.ts`.
 | `DASHBOARD_URL` | ⬜ | Solo para el link en la página raíz `/` |
 | `LANDING_URL` | ⬜ | Solo para el link en la página raíz `/` |
 | `CRON_SECRET` | ✅ 🔒 | Protege `POST /cron/run-sequences` y `POST /cron/run-prospecting` |
+| `TWILIO_ACCOUNT_SID` | ⬜ 🔒 | Ventas IA (Fase 3): llamadas salientes con IA (ConversationRelay) |
+| `TWILIO_AUTH_TOKEN` | ⬜ 🔒 | Ventas IA (Fase 3) |
+| `TWILIO_PHONE_NUMBER` | ⬜ | Número de Twilio desde el que se originan las llamadas (`+1...`) |
+| `PUBLIC_BACKEND_URL` | ⬜ | URL pública del backend, usada para armar las URLs de `/calls/twiml` y `/calls/relay` que consulta Twilio. Ya configurada en producción: `https://api.marketing.pensamiento-libre.org` |
 
 **Healthcheck:** `GET /health` (ya configurado en el Dockerfile y disponible en Coolify).
 

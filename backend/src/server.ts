@@ -1,5 +1,7 @@
 import Fastify from 'fastify';
 import multipart from '@fastify/multipart';
+import formbody from '@fastify/formbody';
+import websocketPlugin from '@fastify/websocket';
 import { config } from './config.js';
 import { parseWhatsAppWebhook } from './channels/whatsapp.js';
 import { handleInboundMessage, handleWebLead } from './orchestrator.js';
@@ -16,6 +18,12 @@ const app = Fastify({ logger: true });
 app.register(multipart, {
   limits: { fileSize: 25 * 1024 * 1024, files: 1 },
 });
+
+// Soporte para cuerpos application/x-www-form-urlencoded (webhook de estado de Twilio)
+app.register(formbody);
+
+// Soporte para WebSocket (Twilio ConversationRelay en /calls/relay)
+app.register(websocketPlugin);
 
 // Tolerar cuerpos JSON vacios (el cron puede llegar sin body): se interpretan como {}.
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
@@ -512,6 +520,61 @@ app.get('/prospecting/stats', async (_req, reply) => {
        .gte('sent_at', new Date(Date.now() - 7 * 86400000).toISOString()),
   ]);
   return reply.code(200).send({ ok: true, by_status: byStatus, campaigns: campaigns.data, sent_last_7d: recentSent.count ?? 0 });
+});
+
+// ============================================================
+// VENTAS IA — LLAMADAS SALIENTES (Fase 3, Twilio ConversationRelay)
+// ============================================================
+
+// Inicia una llamada saliente con IA para un contacto existente.
+app.post('/calls/initiate', async (req, reply) => {
+  const b = (req.body ?? {}) as { contact_id?: string };
+  if (!b.contact_id) return reply.code(400).send({ ok: false, error: 'Falta el campo contact_id' });
+  try {
+    const { initiateCall } = await import('./calls/initiate.js');
+    const result = await initiateCall(b.contact_id);
+    return reply.code(200).send({ ok: true, ...result });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /calls/initiate');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// TwiML que Twilio consulta al conectar la llamada: instruye conectar con ConversationRelay.
+app.post('/calls/twiml', async (req, reply) => {
+  const q = (req.query ?? {}) as { call_id?: string };
+  let relayUrl = '';
+  try {
+    if (q.call_id) {
+      const { buildCallUrls } = await import('./calls/initiate.js');
+      relayUrl = buildCallUrls(q.call_id).relayUrl;
+    }
+  } catch (err) {
+    app.log.error({ err }, 'Error construyendo la URL del relay en /calls/twiml');
+  }
+
+  reply.type('text/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<Response><Connect><ConversationRelay url="${relayUrl}" welcomeGreeting="Hola, gracias por tu interés. ¿En qué puedo ayudarte hoy?" /></Connect></Response>`,
+  );
+});
+
+// WebSocket que atiende la conversación en tiempo real (Twilio ConversationRelay).
+app.get('/calls/relay', { websocket: true }, async (connection, req) => {
+  const { handleCallRelay } = await import('./calls/relay.js');
+  handleCallRelay(connection.socket, req);
+});
+
+// Webhook de estado de la llamada (StatusCallback de Twilio, form-urlencoded).
+app.post('/calls/status', async (req, reply) => {
+  try {
+    const { handleCallStatus } = await import('./calls/status.js');
+    await handleCallStatus((req.body ?? {}) as Record<string, unknown>);
+  } catch (err) {
+    app.log.error({ err }, 'Error en /calls/status');
+  }
+  // Siempre 200: Twilio reintenta agresivamente ante cualquier código de error.
+  return reply.code(200).send('OK');
 });
 
 app
