@@ -65,15 +65,19 @@ export async function handleInboundMessage(opts: {
     phone: opts.channel === 'whatsapp' ? opts.externalId : undefined,
   });
 
-  // Si venía como prospecto de outreach, conviértelo automáticamente a contacto
-  if (opts.channel === 'whatsapp' && opts.externalId) {
-    await convertProspectToContact(opts.externalId, contact.id).catch(() => null);
-  }
-
-  const conversationId = await getOrCreateConversation(contact.id, opts.channel);
+  // Si venía como prospecto de outreach, conviértelo automáticamente a contacto.
+  // Ninguna de estas tres llamadas depende del resultado de las otras (solo de contact.id),
+  // así que se piden en paralelo.
+  const [, conversationId, salesContext] = await Promise.all([
+    opts.channel === 'whatsapp' && opts.externalId
+      ? convertProspectToContact(opts.externalId, contact.id).catch(() => null)
+      : Promise.resolve(null),
+    getOrCreateConversation(contact.id, opts.channel),
+    getSalesContext(),
+  ]);
+  const { catalog, context } = salesContext;
 
   // Clasificar + historial en paralelo
-  const { catalog, context } = await getSalesContext();
   const [classification, history] = await Promise.all([
     classifyMessage({ messageText: opts.text, productsCatalog: catalog }),
     getHistory(contact.id),

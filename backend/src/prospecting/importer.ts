@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { qualifyProspect } from './qualifier.js';
+import { qualifyProspect, fetchActiveProducts } from './qualifier.js';
 
 interface RawProspect {
   full_name?: string;
@@ -136,6 +136,10 @@ export async function qualifyAllNew(sourceId?: string, batchSize = 20): Promise<
   let qualified = 0;
   let errors = 0;
 
+  // Se trae una sola vez la lista de productos activos para todo el lote,
+  // en vez de que cada llamada a qualifyProspect la consulte por su cuenta.
+  const products = await fetchActiveProducts();
+
   for (const p of prospects ?? []) {
     try {
       await db.from('prospects').update({ status: 'qualifying' }).eq('id', p.id);
@@ -147,7 +151,7 @@ export async function qualifyAllNew(sourceId?: string, batchSize = 20): Promise<
         location:   p.location,
         website:    p.website,
         raw_data:   p.raw_data,
-      });
+      }, products);
 
       await db.from('prospects').update({
         status:                 'qualified',

@@ -26,20 +26,36 @@ export interface ProspectQualification {
  *  - Su nivel de consciencia del problema
  *  - El mejor canal y la mejor primera frase
  */
-export async function qualifyProspect(prospect: {
-  full_name?: string | null;
-  company?: string | null;
-  industry?: string | null;
-  location?: string | null;
-  website?: string | null;
-  raw_data?: Record<string, unknown>;
-}): Promise<ProspectQualification> {
+export interface ActiveProduct {
+  id: string;
+  name: string;
+  description?: string | null;
+  sales_brief?: string | null;
+}
+
+/** Trae la lista de productos activos. Pensado para llamarse una sola vez por lote de calificación. */
+export async function fetchActiveProducts(): Promise<ActiveProduct[]> {
   const { data: products } = await db
     .from('products')
     .select('id, name, description, sales_brief')
     .eq('is_active', true);
+  return products ?? [];
+}
 
-  const productList = (products ?? [])
+export async function qualifyProspect(
+  prospect: {
+    full_name?: string | null;
+    company?: string | null;
+    industry?: string | null;
+    location?: string | null;
+    website?: string | null;
+    raw_data?: Record<string, unknown>;
+  },
+  products?: ActiveProduct[],
+): Promise<ProspectQualification> {
+  const activeProducts = products ?? (await fetchActiveProducts());
+
+  const productList = activeProducts
     .map((p) => `- ID:${p.id} | ${p.name}: ${(p.description ?? '') + ' ' + (p.sales_brief ?? '')}`.trim())
     .join('\n');
 

@@ -123,18 +123,19 @@ async function processOneEnrollment(enr: {
   contact_id: string;
   current_step: number;
 }): Promise<boolean> {
-  // Datos de la secuencia y del contacto
-  const { data: seq } = await db
-    .from('sequences')
-    .select('channel')
-    .eq('id', enr.sequence_id)
-    .single();
-
-  const { data: contact } = await db
-    .from('contacts')
-    .select('id, display_name, marketing_opted_out, interested_product_id')
-    .eq('id', enr.contact_id)
-    .single();
+  // Datos de la secuencia y del contacto (independientes, se piden en paralelo)
+  const [{ data: seq }, { data: contact }] = await Promise.all([
+    db
+      .from('sequences')
+      .select('channel')
+      .eq('id', enr.sequence_id)
+      .single(),
+    db
+      .from('contacts')
+      .select('id, display_name, marketing_opted_out, interested_product_id')
+      .eq('id', enr.contact_id)
+      .single(),
+  ]);
 
   // Si se dio de baja, detener.
   if (!contact || contact.marketing_opted_out) {

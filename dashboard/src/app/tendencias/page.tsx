@@ -62,13 +62,19 @@ export default async function Tendencias() {
   const byIntent = countBy((msgs ?? []).filter((m) => m.ai_intent), (m) => m.ai_intent as string);
 
   // Leads de los últimos 14 días
+  const countByDay = new Map<string, number>();
+  for (const c of C) {
+    const key = (c.created_at ?? '').slice(0, 10);
+    if (!key) continue;
+    countByDay.set(key, (countByDay.get(key) ?? 0) + 1);
+  }
   const days: { d: string; n: number }[] = [];
   const today = new Date();
   for (let i = 13; i >= 0; i--) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
     const key = day.toISOString().slice(0, 10);
-    const n = C.filter((c) => (c.created_at ?? '').slice(0, 10) === key).length;
+    const n = countByDay.get(key) ?? 0;
     days.push({ d: key.slice(5), n });
   }
   const maxDay = Math.max(1, ...days.map((x) => x.n));
