@@ -36,13 +36,13 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Estructura general ---------- */
 .app { display: flex; min-height: 100vh; }
-.content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.content { flex: 1; display: flex; flex-direction: column; min-width: 0; margin-left: 248px; }
 
 /* ---------- Barra lateral ---------- */
 .sidebar {
   width: 248px; background: var(--sidebar); color: var(--sidebar-text);
-  padding: 22px 16px; position: sticky; top: 0; height: 100vh;
-  display: flex; flex-direction: column; flex-shrink: 0;
+  padding: 22px 16px; position: fixed; top: 0; left: 0; height: 100vh;
+  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
 }
 .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 22px; }
 .brand .mark {
@@ -169,6 +169,7 @@ button.danger:hover { background: #dc2626; }
 
 @media (max-width: 760px) {
   .sidebar { width: 70px; padding: 18px 10px; }
+  .content { margin-left: 70px; }
   .brand .name, .brand .tag, .nav a span:not(.ico), .nav-section, .sidebar-foot { display: none; }
   .main { padding: 20px 16px; }
   .row2 { grid-template-columns: 1fr; }
