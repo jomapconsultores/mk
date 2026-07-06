@@ -9,6 +9,7 @@ const ICONS: Record<string, string> = {
   'captacion.prospeccion': '🔍',
   'ventas.pipeline': '🧭',
   'ventas.clientes': '👥',
+  'ventas.pedidos': '🧾',
   'automatizacion.seguimientos': '🔁',
   'analitica.tablero': '📊',
   'analitica.tendencias': '📈',

@@ -191,17 +191,44 @@ export async function hasInboundSince(contactId: string, sinceIso: string): Prom
 export async function getSalesContext(): Promise<{ catalog: string; context: string }> {
   const { data } = await db
     .from('products')
-    .select('name, description, price, currency, sales_brief')
+    .select('name, description, price, currency, sales_brief, discount_percent, product_variants(price, discount_percent, is_active)')
     .eq('is_active', true);
 
   const products = data ?? [];
   const catalog = products.map((p) => p.name).join(', ');
   const context = products
-    .map((p) =>
-      `• ${p.name}${p.price ? ` (${p.price} ${p.currency})` : ''}: ${p.description ?? ''} ${p.sales_brief ?? ''}`.trim(),
-    )
+    .map((p) => {
+      const variants = ((p as any).product_variants ?? []).filter((v: any) => v.is_active);
+      const priceLine = describePriceLine(p, variants);
+      return `• ${p.name}${priceLine ? ` (${priceLine})` : ''}: ${p.description ?? ''} ${p.sales_brief ?? ''}`.trim();
+    })
     .join('\n');
   return { catalog, context };
+}
+
+function effectivePrice(
+  basePrice: number | null,
+  baseDiscount: number | null,
+  v?: { price: number | null; discount_percent: number | null },
+): number | null {
+  const price = v?.price ?? basePrice;
+  const discount = v?.discount_percent ?? baseDiscount;
+  if (price == null) return null;
+  return discount ? Number((price * (1 - discount / 100)).toFixed(2)) : price;
+}
+
+function describePriceLine(p: any, variants: any[]): string {
+  if (variants.length === 0) {
+    const eff = effectivePrice(p.price, p.discount_percent);
+    return eff != null ? `${eff} ${p.currency}` : '';
+  }
+  const prices = variants
+    .map((v) => effectivePrice(p.price, p.discount_percent, v))
+    .filter((x: number | null): x is number => x != null);
+  if (prices.length === 0) return '';
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return min === max ? `${min} ${p.currency}` : `desde ${min} ${p.currency}`;
 }
 
 // =============================================================================

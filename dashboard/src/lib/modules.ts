@@ -22,6 +22,7 @@ export const MODULES: ModuleGroup[] = [
     submodules: [
       { key: 'ventas.pipeline', label: 'Pipeline de ventas', path: '/ventas' },
       { key: 'ventas.clientes', label: 'Clientes', path: '/leads' },
+      { key: 'ventas.pedidos', label: 'Pedidos', path: '/pedidos' },
     ],
   },
   {
@@ -64,6 +65,7 @@ export const ALL_SUBMODULE_KEYS = MODULES.flatMap((m) => m.submodules.map((s) =>
 const PATH_ALIASES: Record<string, string> = {
   '/leads/': 'ventas.clientes', // /leads/[id]
   '/products/': 'configuracion.productos', // /products/[id]
+  '/pedidos/': 'ventas.pedidos', // /pedidos/[id]
   '/import': 'captacion.prospeccion', // alias legacy -> Prospección
   // Necesario: sin este alias explícito, el loop genérico de abajo resolvería
   // '/agentes/playground' contra 'agentes.gestion' (path '/agentes') porque

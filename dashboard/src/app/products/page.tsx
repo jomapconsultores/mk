@@ -1,16 +1,37 @@
 import { getAdmin } from '@/lib/supabase-admin';
 import { requireAccess } from '@/lib/access';
-import { money } from '@/lib/format';
+import { money, effectivePrice } from '@/lib/format';
 import { createProduct, toggleProduct } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+/** Línea de precio para la tabla: rango si hay variantes, precio (con descuento) si no. */
+function priceLabel(p: {
+  price: number | null;
+  currency: string;
+  discount_percent: number | null;
+  product_variants?: { price: number | null; discount_percent: number | null; is_active: boolean }[];
+}): string {
+  const variants = (p.product_variants ?? []).filter((v) => v.is_active);
+  if (variants.length === 0) {
+    return money(effectivePrice(p.price, p.discount_percent), p.currency);
+  }
+  const prices = variants
+    .map((v) => effectivePrice(v.price ?? p.price, v.discount_percent ?? p.discount_percent))
+    .filter((x): x is number => x != null);
+  if (prices.length === 0) return '—';
+  const min = Math.min(...prices), max = Math.max(...prices);
+  return min === max ? money(min, p.currency) : `desde ${money(min, p.currency)}`;
+}
 
 export default async function ProductsPage() {
   await requireAccess('configuracion.productos');
   const db = getAdmin();
   const { data: products } = await db
     .from('products')
-    .select('id, name, description, kind, price, currency, is_active, sales_brief')
+    .select(
+      'id, name, description, kind, price, currency, is_active, sales_brief, discount_percent, product_variants(price, discount_percent, is_active)',
+    )
     .order('created_at', { ascending: false });
 
   return (
@@ -44,6 +65,8 @@ export default async function ProductsPage() {
               <input name="currency" defaultValue="USD" />
             </div>
           </div>
+          <label>Descuento % (opcional; se aplica si el producto no tiene variantes o la variante no define el suyo)</label>
+          <input name="discount_percent" type="number" step="0.01" min="0" max="100" placeholder="10" />
           <label>Descripción</label>
           <input name="description" placeholder="Qué es y para qué sirve" />
           <label>Argumento de venta (beneficio clave + objeción común)</label>
@@ -57,11 +80,17 @@ export default async function ProductsPage() {
         <table>
           <thead><tr><th>Nombre</th><th>Tipo</th><th>Precio</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            {(products ?? []).map((p) => (
+            {(products ?? []).map((p) => {
+              const variantCount = (p.product_variants ?? []).length;
+              return (
               <tr key={p.id}>
                 <td><strong>{p.name}</strong><br /><span style={{ color: 'var(--muted)', fontSize: 12 }}>{p.description}</span></td>
                 <td>{p.kind === 'service' ? 'Servicio' : 'Producto'}</td>
-                <td>{money(p.price, p.currency)}</td>
+                <td>
+                  {priceLabel(p)}
+                  {!!p.discount_percent && <><br /><span className="badge" style={{ background: '#f59e0b' }}>-{p.discount_percent}%</span></>}
+                  {variantCount > 0 && <><br /><span style={{ color: 'var(--muted)', fontSize: 12 }}>{variantCount} variante{variantCount === 1 ? '' : 's'}</span></>}
+                </td>
                 <td>{p.is_active ? '✅ Activo' : '⏸️ Inactivo'}</td>
                 <td>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -74,7 +103,8 @@ export default async function ProductsPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {(!products || products.length === 0) && <p className="empty">Aún no hay productos. Agrega el primero arriba ☝️</p>}

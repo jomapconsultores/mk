@@ -39,3 +39,17 @@ export function money(value: number | null, currency = 'USD'): string {
   if (value == null) return '—';
   return `${value.toLocaleString('es', { minimumFractionDigits: 2 })} ${currency}`;
 }
+
+/** Precio con descuento aplicado (o el mismo precio si no hay descuento). */
+export function effectivePrice(price: number | null, discountPercent: number | null): number | null {
+  if (price == null) return null;
+  return discountPercent ? Number((price * (1 - discountPercent / 100)).toFixed(2)) : price;
+}
+
+/** "Talla: M, Color: Rojo" a partir de {"talla":"M","color":"Rojo"} — inverso de parseAttributes. */
+export function formatAttributes(attributes: Record<string, string> | null | undefined): string {
+  if (!attributes) return '';
+  return Object.entries(attributes)
+    .map(([k, v]) => `${k.charAt(0).toUpperCase()}${k.slice(1)}: ${v}`)
+    .join(', ');
+}
