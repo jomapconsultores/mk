@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { getTrends } from '@/lib/trends';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,7 @@ function Bars({ rows, empty }: { rows: Row[]; empty: string }) {
 }
 
 export default async function Tendencias() {
+  await requireAccess('analitica.tendencias');
   const db = getAdmin();
   const { data: contacts } = await db
     .from('contacts')

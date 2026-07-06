@@ -8,9 +8,9 @@ export async function middleware(req: NextRequest) {
   if (pathname === '/' || pathname.startsWith('/login')) return NextResponse.next();
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const email = await verifySession(token, process.env.SESSION_SECRET ?? '');
+  const session = await verifySession(token, process.env.SESSION_SECRET ?? '');
 
-  if (!email) {
+  if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

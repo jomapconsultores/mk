@@ -1,10 +1,12 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { money } from '@/lib/format';
 import { createProduct, toggleProduct } from './actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProductsPage() {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   const { data: products } = await db
     .from('products')

@@ -1,12 +1,17 @@
 import { getAdmin } from '@/lib/supabase-admin';
 import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, STAGE_ORDER, fmtDate } from '@/lib/format';
 import { optOut, updateStage, deleteContact } from './actions';
+import { requireAccess } from '@/lib/access';
 import RescoreButton from '../../ventas/RescoreButton';
 import CallButton from '../../ventas/CallButton';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? '';
+// Proxy autenticado (server-side) hacia el backend real — ver
+// src/app/api/backend/[...path]/route.ts. RescoreButton/CallButton llaman
+// desde el navegador a esta ruta local, nunca al backend real directo
+// (/leads/rescore y /calls/initiate ahora requieren el secreto interno).
+const BACKEND_URL = '/api/backend';
 
 const SENDER_LABEL: Record<string, string> = {
   ai: '🤖 IA', human: '🧑 Asesor', sequence: '🔁 Seguimiento', system: '⚙️ Sistema',
@@ -26,6 +31,7 @@ function fmtDuration(seconds: number | null): string {
 }
 
 export default async function LeadDetail({ params }: { params: { id: string } }) {
+  await requireAccess('ventas.clientes');
   const db = getAdmin();
 
   const { data: c } = await db

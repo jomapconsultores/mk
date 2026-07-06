@@ -18,3 +18,6 @@ alter table sequence_steps      enable row level security;
 alter table sequence_enrollments enable row level security;
 alter table events              enable row level security;
 alter table users               enable row level security;
+alter table roles               enable row level security;
+alter table user_roles          enable row level security;
+alter table role_module_access  enable row level security;

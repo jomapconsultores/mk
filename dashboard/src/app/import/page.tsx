@@ -1,4 +1,7 @@
 import { redirect } from 'next/navigation';
-export default function ImportPage() {
+import { requireAccess } from '@/lib/access';
+
+export default async function ImportPage() {
+  await requireAccess('captacion.prospeccion');
   redirect('/prospeccion?tab=csv');
 }

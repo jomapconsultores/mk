@@ -1,8 +1,10 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SequencesPage() {
+  await requireAccess('automatizacion.seguimientos');
   const db = getAdmin();
   const { data: sequences } = await db
     .from('sequences')

@@ -51,11 +51,13 @@ exception when duplicate_object then null; end $$;
 -- -----------------------------------------------------------------------------
 -- Equipo (operadores que atienden y revisan)
 -- -----------------------------------------------------------------------------
+-- La asignación de roles vive en `roles`/`user_roles` (ver db/add_permissions.sql),
+-- no en una columna aquí: un usuario puede tener 2+ roles y elige cuál usar
+-- ("rol activo") en cada sesión.
 create table if not exists users (
   id           uuid primary key default gen_random_uuid(),
   email        text unique not null,
   full_name    text,
-  role         text not null default 'agent',   -- 'admin' | 'agent'
   is_active    boolean not null default true,
   created_at   timestamptz not null default now()
 );

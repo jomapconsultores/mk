@@ -1,3 +1,5 @@
+import { requireAccess } from '@/lib/access';
+
 export const dynamic = 'force-dynamic';
 
 // Tus sistemas. Edita esta lista para agregar, quitar o renombrar accesos.
@@ -13,7 +15,8 @@ const SISTEMAS = [
   { name: 'Fundación Pensamiento Libre', url: '', desc: 'ERP Fundación', icon: '🏛️' },
 ];
 
-export default function SistemasPage() {
+export default async function SistemasPage() {
+  await requireAccess('configuracion.sistemas');
   return (
     <>
       <h2>Mis sistemas</h2>

@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,7 @@ function csvCell(v: string | null): string {
  *   /api/export?type=customers -> solo clientes ganados (mejor semilla para lookalike)
  */
 export async function GET(req: Request) {
+  await requireAccess('analitica.audiencias');
   const url = new URL(req.url);
   const type = url.searchParams.get('type');
 

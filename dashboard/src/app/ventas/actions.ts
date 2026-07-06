@@ -1,6 +1,7 @@
 'use server';
 
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { revalidatePath } from 'next/cache';
 
 const ALLOWED_STAGES = ['new', 'engaged', 'qualified', 'negotiating', 'customer', 'lost'];
@@ -10,6 +11,7 @@ export async function moveContactStage(
   contactId: string,
   newStage: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await requireAccess('ventas.pipeline');
   if (!ALLOWED_STAGES.includes(newStage)) return { ok: false, error: 'Etapa inválida' };
   const db = getAdmin();
 

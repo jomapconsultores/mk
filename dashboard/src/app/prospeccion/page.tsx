@@ -1,11 +1,16 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import ImportDropzone from './ImportDropzone';
 import CsvImporter from './CsvImporter';
 import QualifyButton from './QualifyButton';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? '';
+// Proxy autenticado (server-side) hacia el backend real — ver
+// src/app/api/backend/[...path]/route.ts. QualifyButton/ImportDropzone llaman
+// desde el navegador a esta ruta local, nunca al backend real directo
+// (/prospecting/qualify e /import-smart ahora requieren el secreto interno).
+const BACKEND_URL = '/api/backend';
 
 const STATUS_LABEL: Record<string, string> = {
   new:        'Nuevo',
@@ -32,6 +37,7 @@ export default async function ProspeccionPage({
 }: {
   searchParams: { tab?: string; status?: string; rama?: string; ok?: string; dup?: string; err?: string };
 }) {
+  await requireAccess('captacion.prospeccion');
   const db = getAdmin();
   const activeTab = searchParams.tab ?? 'pipeline';
 

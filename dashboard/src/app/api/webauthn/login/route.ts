@@ -6,6 +6,7 @@ import {
 import { cookies } from 'next/headers';
 import { getAdmin } from '@/lib/supabase-admin';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
+import { defaultActiveRole } from '@/lib/roles';
 
 const RP_ID  = process.env.WEBAUTHN_RP_ID  ?? 'localhost';
 const ORIGIN = process.env.WEBAUTHN_ORIGIN ?? 'http://localhost:3000';
@@ -60,7 +61,7 @@ export async function PUT(req: NextRequest) {
 
   const { data: user } = await db
     .from('users')
-    .select('is_active')
+    .select('id, is_active')
     .eq('email', stored.user_email)
     .maybeSingle();
 
@@ -93,7 +94,12 @@ export async function PUT(req: NextRequest) {
     .update({ counter: verification.authenticationInfo.newCounter })
     .eq('credential_id', assertion.id);
 
-  const token = await signSession(stored.user_email, process.env.SESSION_SECRET ?? '');
+  const { data: urows } = await db.from('user_roles').select('roles(key)').eq('user_id', user.id);
+  const roleKeys = (urows ?? []).map((r: any) => r.roles.key);
+  const role = defaultActiveRole(roleKeys);
+  if (!role) return NextResponse.json({ error: 'Usuario sin roles asignados' }, { status: 403 });
+
+  const token = await signSession(stored.user_email, role, process.env.SESSION_SECRET ?? '');
   const res   = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,

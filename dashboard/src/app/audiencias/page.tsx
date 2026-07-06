@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ async function count(type?: 'customers') {
 }
 
 export default async function AudienciasPage() {
+  await requireAccess('analitica.audiencias');
   const total = await count();
   const customers = await count('customers');
 

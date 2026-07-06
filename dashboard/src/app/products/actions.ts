@@ -1,11 +1,13 @@
 'use server';
 
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 /** Crea un producto desde el formulario del panel. */
 export async function createProduct(formData: FormData) {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   const name = String(formData.get('name') ?? '').trim();
   if (!name) return;
@@ -24,6 +26,7 @@ export async function createProduct(formData: FormData) {
 
 /** Activa/desactiva un producto. */
 export async function toggleProduct(id: string, active: boolean) {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   await db.from('products').update({ is_active: active }).eq('id', id);
   revalidatePath('/products');
@@ -31,6 +34,7 @@ export async function toggleProduct(id: string, active: boolean) {
 
 /** Actualiza los datos de un producto existente desde el formulario de edición. */
 export async function updateProduct(id: string, formData: FormData) {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   const name = String(formData.get('name') ?? '').trim();
   if (!name) return;
@@ -53,6 +57,7 @@ export async function updateProduct(id: string, formData: FormData) {
 
 /** Elimina un producto. */
 export async function deleteProduct(id: string) {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   await db.from('products').delete().eq('id', id);
   revalidatePath('/products');

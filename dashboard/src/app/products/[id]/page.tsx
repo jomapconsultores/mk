@@ -1,9 +1,11 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { updateProduct, deleteProduct } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditProduct({ params }: { params: { id: string } }) {
+  await requireAccess('configuracion.productos');
   const db = getAdmin();
   const { data: p } = await db.from('products').select('*').eq('id', params.id).maybeSingle();
   if (!p) return <p className="empty">Producto no encontrado.</p>;

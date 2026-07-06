@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getAdmin } from '@/lib/supabase-admin';
 import { SESSION_COOKIE, signSession, verifyPassword } from '@/lib/auth';
+import { defaultActiveRole } from '@/lib/roles';
 
 /** Inicia sesión: valida email registrado y su contraseña (propia o, si no tiene, la compartida). */
 export async function login(formData: FormData) {
@@ -13,7 +14,7 @@ export async function login(formData: FormData) {
   const db = getAdmin();
   const { data } = await db
     .from('users')
-    .select('email, is_active, password_hash')
+    .select('id, email, is_active, password_hash')
     .eq('email', email)
     .maybeSingle();
 
@@ -29,7 +30,12 @@ export async function login(formData: FormData) {
     redirect('/login?error=1');
   }
 
-  const token = await signSession(email, process.env.SESSION_SECRET ?? '');
+  const { data: urows } = await db.from('user_roles').select('roles(key)').eq('user_id', data.id);
+  const roleKeys = (urows ?? []).map((r: any) => r.roles.key);
+  const role = defaultActiveRole(roleKeys);
+  if (!role) redirect('/login?error=3'); // usuario sin roles asignados
+
+  const token = await signSession(email, role, process.env.SESSION_SECRET ?? '');
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: true,

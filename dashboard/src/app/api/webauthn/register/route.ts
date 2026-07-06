@@ -6,6 +6,7 @@ import {
 import { cookies } from 'next/headers';
 import { getAdmin } from '@/lib/supabase-admin';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
+import { defaultActiveRole } from '@/lib/roles';
 
 const RP_NAME = 'Marketing MAP';
 const RP_ID   = process.env.WEBAUTHN_RP_ID   ?? 'localhost';
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const db = getAdmin();
   const { data: user } = await db
     .from('users')
-    .select('email, full_name, is_active')
+    .select('id, email, full_name, is_active')
     .eq('email', email.toLowerCase())
     .maybeSingle();
 
@@ -100,7 +101,19 @@ export async function PUT(req: NextRequest) {
 
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
 
-  const token = await signSession(email.toLowerCase(), process.env.SESSION_SECRET ?? '');
+  const { data: registeredUser } = await db
+    .from('users')
+    .select('id')
+    .eq('email', email.toLowerCase())
+    .maybeSingle();
+  const { data: urows } = registeredUser
+    ? await db.from('user_roles').select('roles(key)').eq('user_id', registeredUser.id)
+    : { data: null };
+  const roleKeys = (urows ?? []).map((r: any) => r.roles.key);
+  const role = defaultActiveRole(roleKeys);
+  if (!role) return NextResponse.json({ error: 'Usuario sin roles asignados' }, { status: 403 });
+
+  const token = await signSession(email.toLowerCase(), role, process.env.SESSION_SECRET ?? '');
   const res   = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,

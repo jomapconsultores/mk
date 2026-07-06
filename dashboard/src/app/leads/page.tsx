@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { STAGE_LABELS, STAGE_COLORS, INTEREST_LABELS, fmtDate } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,7 @@ export default async function LeadsPage({
 }: {
   searchParams: { stage?: string };
 }) {
+  await requireAccess('ventas.clientes');
   const db = getAdmin();
   let q = db
     .from('contacts')

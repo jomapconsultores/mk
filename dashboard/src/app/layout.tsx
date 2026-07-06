@@ -1,11 +1,10 @@
 import './globals.css';
 import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
-import { cookies } from 'next/headers';
 import Nav from './Nav';
 import GuidePanel from './GuidePanel';
-import { SESSION_COOKIE, verifySession } from '@/lib/auth';
-import { getAdmin } from '@/lib/supabase-admin';
+import RoleSwitcher from './RoleSwitcher';
+import { getCurrentUser } from '@/lib/access';
 import { logout } from './login/actions';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -22,19 +21,11 @@ export const metadata = {
   themeColor: '#4f46e5',
 };
 
-const ROLE_LABEL: Record<string, string> = { admin: 'Administrador', socia: 'Socia', agent: 'Asesor' };
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  const email = await verifySession(token, process.env.SESSION_SECRET ?? '');
+  const user = await getCurrentUser();
 
-  let displayName = email ?? '';
-  let role = '';
-  if (email) {
-    const { data } = await getAdmin().from('users').select('full_name, role').eq('email', email).maybeSingle();
-    if (data?.full_name) displayName = data.full_name;
-    if (data?.role) role = ROLE_LABEL[data.role] ?? data.role;
-  }
+  const email = user?.email ?? '';
+  const displayName = user?.fullName || user?.email || '';
 
   return (
     <html lang="es" className={inter.variable}>
@@ -61,7 +52,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   style={{ width: '100%', maxWidth: 160, borderRadius: 8, display: 'block', margin: '0 auto' }}
                 />
               </div>
-              <Nav />
+              <Nav permissions={user ? [...user.permissions] : []} isAdmin={user?.isAdmin ?? false} />
               <div className="sidebar-foot" style={{ fontSize: 10, lineHeight: 1.5, padding: '12px 14px', textAlign: 'center' }}>
                 <div style={{ marginBottom: 3 }}>© 2026 Marketing MAP</div>
                 <div style={{ color: 'var(--muted)', fontSize: 9 }}>Desarrollado por</div>
@@ -78,8 +69,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span className="status-pill"><span className="dot" /> Sistema activo</span>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-                    {displayName}{role ? ` · ${role}` : ''}
+                  <span style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+                    {displayName}
+                    {user && user.roles.length > 1 ? (
+                      <RoleSwitcher roles={user.roles} activeRole={user.activeRole} />
+                    ) : user?.activeRoleLabel ? (
+                      ` · ${user.activeRoleLabel}`
+                    ) : (
+                      ''
+                    )}
                   </span>
                   {/* Guía de configuración — botón inline en la topbar */}
                   <GuidePanel />

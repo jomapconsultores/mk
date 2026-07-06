@@ -1,6 +1,7 @@
 'use server';
 
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { redirect } from 'next/navigation';
 
 /** Normaliza texto: minúsculas y sin acentos (para mapear cabeceras). */
@@ -32,6 +33,7 @@ function parseCSV(text: string, delim: string): string[][] {
 }
 
 export async function importContacts(formData: FormData) {
+  await requireAccess('captacion.prospeccion');
   if (!formData.get('consent')) redirect('/import?err=consent');
 
   const file = formData.get('file') as File | null;

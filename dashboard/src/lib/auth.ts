@@ -1,5 +1,7 @@
 // Sesión firmada con HMAC (funciona en Node y en el Edge runtime del middleware).
-// El cookie guarda: base64url(email) + "." + base64url(HMAC_SHA256(email, SESSION_SECRET)).
+// El cookie guarda: base64url(JSON.stringify({email, role})) + "." + base64url(HMAC_SHA256(payload, SESSION_SECRET)).
+// El "role" es el rol ACTIVO de la sesión. Nunca se confía en él a ciegas:
+// getCurrentUser() siempre revalida contra user_roles que el usuario aún tiene ese rol.
 
 const te = new TextEncoder();
 const td = new TextDecoder();
@@ -33,10 +35,11 @@ function safeEqual(a: string, b: string): boolean {
 
 export const SESSION_COOKIE = 'mm_session';
 
-/** Crea el token de sesión firmado para un email. */
-export async function signSession(email: string, secret: string): Promise<string> {
-  const sig = toB64url(await hmac(email, secret));
-  return toB64url(te.encode(email)) + '.' + sig;
+/** Crea el token de sesión firmado para un email + rol activo. */
+export async function signSession(email: string, role: string, secret: string): Promise<string> {
+  const payload = JSON.stringify({ email, role });
+  const sig = toB64url(await hmac(payload, secret));
+  return toB64url(te.encode(payload)) + '.' + sig;
 }
 
 // ---------- Cifrado de contraseñas por usuario (PBKDF2-SHA256) ----------
@@ -72,17 +75,27 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return safeEqual(await pbkdf2Hex(password, saltHex), h);
 }
 
-/** Verifica el token; devuelve el email si es válido, o null. */
-export async function verifySession(token: string | undefined, secret: string): Promise<string | null> {
+/** Verifica el token; devuelve { email, role } si es válido, o null. */
+export async function verifySession(
+  token: string | undefined,
+  secret: string,
+): Promise<{ email: string; role: string } | null> {
   if (!token || !secret) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
-  let email: string;
+  let raw: string;
   try {
-    email = fromB64url(payload);
+    raw = fromB64url(payload);
   } catch {
     return null;
   }
-  const expected = toB64url(await hmac(email, secret));
-  return safeEqual(sig, expected) ? email : null;
+  const expected = toB64url(await hmac(raw, secret));
+  if (!safeEqual(sig, expected)) return null;
+  try {
+    const { email, role } = JSON.parse(raw);
+    if (typeof email !== 'string' || typeof role !== 'string') return null;
+    return { email, role };
+  } catch {
+    return null;
+  }
 }

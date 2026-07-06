@@ -8,6 +8,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
   const error =
     searchParams.error === '1' ? 'Contraseña incorrecta.'
     : searchParams.error === '2' ? 'Este correo no está autorizado.'
+    : searchParams.error === '3' ? 'Tu usuario no tiene roles asignados. Contacta a un administrador.'
     : null;
 
   return (

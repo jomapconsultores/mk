@@ -1,4 +1,5 @@
 import { getAdmin } from '@/lib/supabase-admin';
+import { requireAccess } from '@/lib/access';
 import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER, fmtDate } from '@/lib/format';
 import KanbanBoard, { type KanbanContact } from './KanbanBoard';
 
@@ -11,6 +12,7 @@ export const dynamic = 'force-dynamic';
 const BACKEND_URL = '/api/backend';
 
 export default async function VentasPage() {
+  await requireAccess('ventas.pipeline');
   const db = getAdmin();
   const { data } = await db
     .from('contacts')

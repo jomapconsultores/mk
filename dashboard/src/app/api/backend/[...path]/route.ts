@@ -1,6 +1,32 @@
 import { NextResponse } from 'next/server';
+import { getCurrentUser, hasAccess } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Prefijo de ruta del backend -> submódulo(s) que autorizan usarla. Si un
+ * prefijo no aparece aquí, se asume que es sensible y solo el admin puede
+ * llamarlo (falla cerrado, igual que la tabla user_module_access).
+ * Completar contra las rutas reales de backend/src/server.ts.
+ */
+const PROXY_ACCESS: Record<string, string[]> = {
+  'captacion/': ['captacion.activa'],
+  'prospecting/': ['captacion.prospeccion'],
+  // /leads/rescore y /calls/initiate se usan tanto desde el Kanban (pipeline)
+  // como desde la ficha de cliente: cualquiera de los dos permisos alcanza.
+  'leads/': ['ventas.pipeline', 'ventas.clientes'],
+  'calls/': ['ventas.pipeline', 'ventas.clientes'],
+  'sequences/': ['automatizacion.seguimientos'],
+  'products/': ['configuracion.productos'],
+};
+
+function requiredKeysFor(path: string[]): string[] | null {
+  const joined = path.join('/');
+  for (const [prefix, keys] of Object.entries(PROXY_ACCESS)) {
+    if (joined.startsWith(prefix)) return keys;
+  }
+  return null;
+}
 
 /**
  * Proxy autenticado hacia el backend real. Esta ruta vive bajo /api/, así que
@@ -12,8 +38,28 @@ export const dynamic = 'force-dynamic';
  * los endpoints de IA/Twilio/CRM del backend abiertos a cualquiera que
  * conociera esa URL (el backend valida el secreto, pero si el navegador nunca
  * lo tiene, ya no puede llegar por ahí sin pasar primero por la sesión del panel).
+ *
+ * Ocultar el menú y bloquear el page.tsx correspondiente no impide que
+ * alguien golpee este endpoint directo desde la consola del navegador estando
+ * logueado con una cuenta sin ese permiso — por eso el chequeo se repite acá
+ * (misma fuente de permisos que las páginas, vía lib/access.ts), y no solo
+ * como UX en el Nav.
  */
 async function proxy(req: Request, path: string[]): Promise<NextResponse> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ ok: false, error: 'No autenticado.' }, { status: 401 });
+  }
+
+  const required = requiredKeysFor(path);
+  const allowed = required ? required.some((key) => hasAccess(user, key)) : user.isAdmin;
+  if (!allowed) {
+    return NextResponse.json(
+      { ok: false, error: 'No tenés permiso para usar esta función.' },
+      { status: 403 },
+    );
+  }
+
   const backendUrl = process.env.BACKEND_URL ?? '';
   const secret = process.env.INTERNAL_API_SECRET ?? '';
   if (!backendUrl || !secret) {
