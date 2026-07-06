@@ -29,7 +29,8 @@ create table if not exists roles (
 insert into roles (key, label) values
   ('admin', 'Administrador'),
   ('socia', 'Socia'),
-  ('agent', 'Asesor')
+  ('agent', 'Asesor'),
+  ('trabajador', 'Trabajador')
 on conflict (key) do nothing;
 
 -- -----------------------------------------------------------------------------
@@ -87,6 +88,9 @@ end $$;
 --    la migración anterior daba todo-acceso por usuario); admin no recibe
 --    filas (bypass total resuelto en código). El admin restringe después
 --    manualmente desde /usuarios/roles.
+--    'trabajador' queda EXCLUIDO a propósito: arranca sin ninguna fila en
+--    role_module_access (cero permisos) y el admin se los otorga uno por uno
+--    manualmente desde /usuarios/roles según lo requiera cada persona.
 -- -----------------------------------------------------------------------------
 insert into role_module_access (role_id, submodule_key)
 select r.id, k
@@ -98,7 +102,7 @@ cross join unnest(array[
   'analitica.tablero', 'analitica.tendencias', 'analitica.audiencias',
   'configuracion.productos', 'configuracion.sistemas'
 ]) as k
-where r.key <> 'admin'
+where r.key not in ('admin', 'trabajador')
 on conflict (role_id, submodule_key) do nothing;
 
 -- -----------------------------------------------------------------------------

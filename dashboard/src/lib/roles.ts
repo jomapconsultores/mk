@@ -1,5 +1,7 @@
 // Prioridad determinística para elegir el rol activo por defecto.
-const ROLE_PRIORITY = ['admin', 'socia', 'agent'] as const;
+// 'trabajador' va al final a propósito: arranca sin permisos, así que si un
+// usuario tiene 'trabajador' + otro rol con acceso, se prefiere el otro rol.
+const ROLE_PRIORITY = ['admin', 'socia', 'agent', 'trabajador'] as const;
 
 /** Elige el rol activo por defecto al iniciar sesión (o si el rol de la cookie ya no es válido). */
 export function defaultActiveRole(roleKeys: string[]): string | null {
