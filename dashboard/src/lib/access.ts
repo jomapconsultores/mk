@@ -38,16 +38,24 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!session) return null;
 
   const db = getAdmin();
-  const { data } = await db
+  const { data, error } = await db
     .from('users')
     .select(
       `
       id, full_name, is_active,
-      user_roles ( roles ( key, label, role_module_access ( submodule_key ) ) )
+      user_roles!user_id ( roles ( key, label, role_module_access ( submodule_key ) ) )
     `,
     )
     .eq('email', session.email)
     .maybeSingle();
+  // OJO: user_roles!user_id (no solo "user_roles") es obligatorio. user_roles
+  // tiene DOS foreign keys hacia users (user_id y granted_by, ver
+  // db/add_permissions.sql) — sin el hint, PostgREST no puede resolver cual de
+  // las dos usar para el embed y responde un error "ambiguous relationship"
+  // (PGRST201) en vez de filas. Eso rompia el login de TODO usuario (con o sin
+  // roles), porque `data` llegaba undefined y esta funcion devolvia null como
+  // si nadie tuviera sesion.
+  if (error) console.error('[getCurrentUser] error consultando users/user_roles:', error.message);
 
   if (!data || data.is_active === false) return null;
 

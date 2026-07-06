@@ -9,6 +9,12 @@ import { logout } from './login/actions';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
+// Sin esto, el layout (que resuelve permisos/roles en cada render via
+// getCurrentUser) puede quedar cacheado — un rol recien otorgado no se
+// reflejaria en el Nav/RoleSwitcher hasta el proximo build/deploy. El resto
+// de paginas ya lo tienen; al layout se le habia quedado afuera.
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Marketing MAP · Panel',
   description: 'Sistema de captación y gestión de clientes con IA',
