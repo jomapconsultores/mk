@@ -73,7 +73,20 @@ export async function importContacts(formData: FormData) {
   if (!items.length) redirect('/prospeccion?tab=csv&ok=0&dup=0');
 
   const db = getAdmin();
-  const { data: existing } = await db.from('contacts').select('email, phone');
+
+  // Solo se consultan los contactos existentes cuyo email/teléfono aparece en este lote
+  // (en vez de traer toda la tabla contacts), así la consulta escala con el tamaño del CSV.
+  const escapeInList = (vals: string[]) => vals.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(',');
+  const batchEmails = [...new Set(items.map((it) => it.email).filter(Boolean))];
+  const batchPhones = [...new Set(items.map((it) => it.phone).filter(Boolean))];
+  let existing: { email: string | null; phone: string | null }[] = [];
+  if (batchEmails.length || batchPhones.length) {
+    const orFilters: string[] = [];
+    if (batchEmails.length) orFilters.push(`email.in.(${escapeInList(batchEmails)})`);
+    if (batchPhones.length) orFilters.push(`phone.in.(${escapeInList(batchPhones)})`);
+    const { data } = await db.from('contacts').select('email, phone').or(orFilters.join(','));
+    existing = data ?? [];
+  }
   const seenEmail = new Set((existing ?? []).map((e) => (e.email ?? '').toLowerCase()).filter(Boolean));
   const seenPhone = new Set((existing ?? []).map((e) => e.phone ?? '').filter(Boolean));
 

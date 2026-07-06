@@ -39,12 +39,15 @@ function Bars({ rows, empty }: { rows: Row[]; empty: string }) {
 
 export default async function Tendencias() {
   const db = getAdmin();
-  const { data: contacts } = await db
-    .from('contacts')
-    .select('created_at, source_channel, interested_product_id, marketing_opted_out, stage, interest_level')
-    .limit(5000);
-  const { data: products } = await db.from('products').select('id, name');
-  const { data: msgs } = await db.from('messages').select('ai_intent').eq('direction', 'inbound').limit(5000);
+  const [{ data: contacts }, { data: products }, { data: msgs }, trends] = await Promise.all([
+    db
+      .from('contacts')
+      .select('created_at, source_channel, interested_product_id, marketing_opted_out, stage, interest_level')
+      .limit(5000),
+    db.from('products').select('id, name'),
+    db.from('messages').select('ai_intent').eq('direction', 'inbound').limit(5000),
+    getTrends('EC'),
+  ]);
 
   const C = contacts ?? [];
   const total = C.length;
@@ -57,16 +60,21 @@ export default async function Tendencias() {
   const bySource = countBy(C, (c) => CHANNEL_LABEL[c.source_channel ?? 'desconocido'] ?? c.source_channel ?? 'Desconocido');
   const byProduct = countBy(C.filter((c) => c.interested_product_id), (c) => prodName[c.interested_product_id as string] ?? 'Otro');
   const byIntent = countBy((msgs ?? []).filter((m) => m.ai_intent), (m) => m.ai_intent as string);
-  const trends = await getTrends('EC');
 
   // Leads de los últimos 14 días
+  const countByDay = new Map<string, number>();
+  for (const c of C) {
+    const key = (c.created_at ?? '').slice(0, 10);
+    if (!key) continue;
+    countByDay.set(key, (countByDay.get(key) ?? 0) + 1);
+  }
   const days: { d: string; n: number }[] = [];
   const today = new Date();
   for (let i = 13; i >= 0; i--) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
     const key = day.toISOString().slice(0, 10);
-    const n = C.filter((c) => (c.created_at ?? '').slice(0, 10) === key).length;
+    const n = countByDay.get(key) ?? 0;
     days.push({ d: key.slice(5), n });
   }
   const maxDay = Math.max(1, ...days.map((x) => x.n));

@@ -11,8 +11,7 @@ async function count(type?: 'customers') {
 }
 
 export default async function AudienciasPage() {
-  const total = await count();
-  const customers = await count('customers');
+  const [total, customers] = await Promise.all([count(), count('customers')]);
 
   return (
     <>

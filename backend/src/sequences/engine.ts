@@ -74,15 +74,19 @@ export async function enrollEligibleContacts(): Promise<number> {
       .maybeSingle();
     const firstDelay = firstStep?.delay_hours ?? 0;
 
-    for (const c of candidates ?? []) {
+    if ((candidates ?? []).length > 0) {
       const nextRun = new Date(Date.now() + firstDelay * 3600_000).toISOString();
-      const { error } = await db
+      const rows = (candidates ?? []).map((c) => ({
+        sequence_id: seq.id,
+        contact_id: c.id,
+        next_run_at: nextRun,
+      }));
+      const { data: inserted } = await db
         .from('sequence_enrollments')
-        .insert({ sequence_id: seq.id, contact_id: c.id, next_run_at: nextRun })
-        // si ya estaba inscrito (unique), no hace nada
-        .select('id')
-        .single();
-      if (!error) enrolled++;
+        .upsert(rows, { onConflict: 'sequence_id,contact_id', ignoreDuplicates: true })
+        // si ya estaba inscrito (unique), no hace nada (ignoreDuplicates las omite)
+        .select('id');
+      enrolled += inserted?.length ?? 0;
     }
   }
   return enrolled;
@@ -119,18 +123,19 @@ async function processOneEnrollment(enr: {
   contact_id: string;
   current_step: number;
 }): Promise<boolean> {
-  // Datos de la secuencia y del contacto
-  const { data: seq } = await db
-    .from('sequences')
-    .select('channel')
-    .eq('id', enr.sequence_id)
-    .single();
-
-  const { data: contact } = await db
-    .from('contacts')
-    .select('id, display_name, marketing_opted_out, interested_product_id')
-    .eq('id', enr.contact_id)
-    .single();
+  // Datos de la secuencia y del contacto (independientes, se piden en paralelo)
+  const [{ data: seq }, { data: contact }] = await Promise.all([
+    db
+      .from('sequences')
+      .select('channel')
+      .eq('id', enr.sequence_id)
+      .single(),
+    db
+      .from('contacts')
+      .select('id, display_name, marketing_opted_out, interested_product_id')
+      .eq('id', enr.contact_id)
+      .single(),
+  ]);
 
   // Si se dio de baja, detener.
   if (!contact || contact.marketing_opted_out) {

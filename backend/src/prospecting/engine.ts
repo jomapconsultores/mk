@@ -52,24 +52,31 @@ async function enrollEligibleProspects(): Promise<number> {
     if (filter.location)       q = q.ilike('location', `%${filter.location}%`);
 
     const { data: prospects } = await q;
+    const prospectIds = (prospects ?? []).map((p) => p.id);
+
+    // Primer paso de la campaña: no depende de cada prospecto, se calcula una sola vez.
+    const { data: firstStep } = await db
+      .from('outreach_steps')
+      .select('delay_hours')
+      .eq('campaign_id', campaign.id)
+      .order('step_order')
+      .limit(1)
+      .single();
+
+    // ¿Cuáles de estos prospectos ya están inscritos en esta campaña? (una sola consulta)
+    let alreadyEnrolled = new Set<string>();
+    if (prospectIds.length > 0) {
+      const { data: existing } = await db
+        .from('outreach_enrollments')
+        .select('prospect_id')
+        .eq('campaign_id', campaign.id)
+        .in('prospect_id', prospectIds);
+      alreadyEnrolled = new Set((existing ?? []).map((e) => e.prospect_id));
+    }
 
     for (const p of prospects ?? []) {
       // ¿Ya está inscrito en esta campaña?
-      const { count } = await db
-        .from('outreach_enrollments')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .eq('prospect_id', p.id);
-      if ((count ?? 0) > 0) continue;
-
-      // Obtener primer paso para calcular next_run_at
-      const { data: firstStep } = await db
-        .from('outreach_steps')
-        .select('delay_hours')
-        .eq('campaign_id', campaign.id)
-        .order('step_order')
-        .limit(1)
-        .single();
+      if (alreadyEnrolled.has(p.id)) continue;
 
       const nextRun = new Date();
       nextRun.setHours(nextRun.getHours() + (firstStep?.delay_hours ?? 0));
