@@ -39,34 +39,38 @@ export default async function ProspeccionPage({
   const filterStatus = searchParams.status ?? '';
   const filterRama   = searchParams.rama   ?? '';
 
-  const { data: allStatuses } = await db.from('prospects').select('status');
-  const counts: Record<string, number> = {};
-  for (const r of allStatuses ?? []) counts[r.status] = (counts[r.status] ?? 0) + 1;
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-
   let q = db
     .from('prospects')
     .select('id, full_name, company, email, phone, industry, location, fit_score, status, ai_profile_summary, outreach_angle, raw_data, created_at')
     .order('fit_score', { ascending: false })
     .limit(200);
   if (filterStatus) q = q.eq('status', filterStatus);
-  const { data: prospects } = await q;
+
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  const [statusCounts, { data: prospects }, { data: campaigns }, { count: sentThisWeek }] = await Promise.all([
+    Promise.all(
+      Object.keys(STATUS_LABEL).map((status) =>
+        db
+          .from('prospects')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', status)
+          .then(({ count }) => [status, count ?? 0] as const),
+      ),
+    ),
+    q,
+    db.from('outreach_campaigns').select('id, name, is_active, daily_limit, channel_order').order('created_at'),
+    db.from('outreach_messages').select('id', { count: 'exact', head: true }).gte('sent_at', weekAgo),
+  ]);
+
+  const counts: Record<string, number> = {};
+  for (const [status, count] of statusCounts) counts[status] = count;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   // Filtrar por rama en memoria (raw_data es JSONB — no se puede filtrar directamente con el cliente)
   const prospectsFiltrados = filterRama
     ? (prospects ?? []).filter((p: any) => p.raw_data?.etiqueta_crm === filterRama || p.raw_data?.rama === filterRama)
     : (prospects ?? []);
-
-  const { data: campaigns } = await db
-    .from('outreach_campaigns')
-    .select('id, name, is_active, daily_limit, channel_order')
-    .order('created_at');
-
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const { count: sentThisWeek } = await db
-    .from('outreach_messages')
-    .select('id', { count: 'exact', head: true })
-    .gte('sent_at', weekAgo);
 
   // ── CSV feedback ─────────────────────────────────────────────
   const csvOk  = searchParams.ok;

@@ -536,20 +536,31 @@ app.get('/captacion/stats', async (req, reply) => {
   }
 });
 
+// Estados posibles de prospects.status (ver db/add_prospecting.sql, tipo prospect_status)
+const PROSPECT_STATUSES = ['new', 'qualifying', 'qualified', 'outreach', 'responded', 'converted', 'discarded'] as const;
+
 // Stats de prospección para el dashboard
 app.get('/prospecting/stats', async (req, reply) => {
   if (!requireInternalAuth(req, reply)) return;
   const { db: _db } = await import('./db.js');
-  const [byStatus, campaigns, recentSent] = await Promise.all([
-    _db.from('prospects').select('status').then(({ data }) => {
-      const counts: Record<string, number> = {};
-      for (const r of data ?? []) counts[r.status] = (counts[r.status] ?? 0) + 1;
-      return counts;
-    }),
+  const [byStatusCounts, campaigns, recentSent] = await Promise.all([
+    Promise.all(
+      PROSPECT_STATUSES.map((status) =>
+        _db
+          .from('prospects')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', status)
+          .then(({ count }) => [status, count ?? 0] as const),
+      ),
+    ),
     _db.from('outreach_campaigns').select('id, name, is_active, daily_limit'),
     _db.from('outreach_messages').select('id', { count: 'exact', head: true })
        .gte('sent_at', new Date(Date.now() - 7 * 86400000).toISOString()),
   ]);
+  const byStatus: Record<string, number> = {};
+  for (const [status, count] of byStatusCounts) {
+    if (count > 0) byStatus[status] = count;
+  }
   return reply.code(200).send({ ok: true, by_status: byStatus, campaigns: campaigns.data, sent_last_7d: recentSent.count ?? 0 });
 });
 

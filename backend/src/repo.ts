@@ -121,8 +121,10 @@ export async function saveMessage(opts: {
     opts.direction === 'inbound'
       ? { last_inbound_at: new Date().toISOString() }
       : { last_contacted_at: new Date().toISOString() };
-  await db.from('contacts').update(stamp).eq('id', opts.contactId);
-  await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', opts.conversationId);
+  await Promise.all([
+    db.from('contacts').update(stamp).eq('id', opts.contactId),
+    db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', opts.conversationId),
+  ]);
 }
 
 /** Aplica la clasificacion de la IA al contacto. */
