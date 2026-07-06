@@ -12,6 +12,8 @@ import { scrapeGoogleMaps } from './prospecting/scrapers/google-maps.js';
 import { runProspectingOnce } from './prospecting/engine.js';
 import { fileToText, extractContactsFromText } from './prospecting/smart-extractor.js';
 import { db } from './db.js';
+import { getAgentById, getSalesContext } from './repo.js';
+import { generateReply } from './ai/reply.js';
 
 const app = Fastify({ logger: true });
 
@@ -607,6 +609,50 @@ app.post('/calls/status', async (req, reply) => {
   }
   // Siempre 200: Twilio reintenta agresivamente ante cualquier código de error.
   return reply.code(200).send('OK');
+});
+
+// ============================================================
+// AGENTES IA — Playground (probar un agente EN VIVO sin tocar datos reales)
+// ============================================================
+
+// El CRUD (crear/editar/listar/publicar) no vive aquí: va directo a Supabase
+// desde Server Actions del dashboard (dashboard/src/app/agentes/actions.ts),
+// igual que products/actions.ts. Este es el único endpoint que necesita el
+// backend, porque ejecutar el LLM requiere las API keys que solo viven en
+// backend/.env.
+app.post('/agents/playground', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
+  const b = (req.body ?? {}) as {
+    agent_id?: string;
+    message?: string;
+    history?: Array<{ role: 'user' | 'assistant'; text: string }>;
+  };
+  if (!b.agent_id) return reply.code(400).send({ ok: false, error: 'Falta agent_id' });
+  if (!b.message?.trim()) return reply.code(400).send({ ok: false, error: 'Falta message' });
+
+  try {
+    const agent = await getAgentById(b.agent_id);
+    if (!agent) return reply.code(404).send({ ok: false, error: 'Agente no encontrado' });
+
+    const caps = new Set(agent.capabilities ?? []);
+    const { context } = await getSalesContext();
+    const historyText = (b.history ?? [])
+      .map((h) => `[${h.role === 'user' ? 'Cliente' : 'Nosotros'}]: ${h.text}`)
+      .join('\n');
+
+    const replyText = await generateReply({
+      messageText:  b.message,
+      history:      historyText,
+      contactName:  'Cliente de prueba (Playground)',
+      salesContext: caps.has('use_catalog') ? context : '',
+      stage:        'playground',
+      agentInstructions: agent.instructions,
+    });
+    return reply.code(200).send({ ok: true, reply: replyText });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /agents/playground');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
+  }
 });
 
 app

@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { WebSocket, RawData } from 'ws';
 import { llm } from '../ai/router.js';
-import { getSalesContext } from '../repo.js';
+import { getPublishedAgent, getSalesContext } from '../repo.js';
 import { db } from '../db.js';
 
 /**
@@ -55,12 +55,18 @@ async function handleIncomingTurn(socket: WebSocket, callId: string | undefined,
 
   try {
     const { context } = await getSalesContext();
+    const agent = await getPublishedAgent();
+    const caps = new Set(agent?.capabilities ?? []);
+    const personality = (agent && caps.has('voice_calls'))
+      ? `\n\nPersonalidad e instrucciones del equipo para esta llamada:\n${agent.instructions}\n`
+      : '';
+
     const system = `Eres un vendedor telefónico cordial, claro y breve.
 Estás en una llamada de voz en tiempo real: tus respuestas se convierten a audio, así que
 escribe SOLO lo que dirías en voz alta (1-3 frases cortas, sin listas, sin markdown, sin emojis).
 Nunca inventes precios ni datos que no tengas. Si no sabes algo, ofrece que un asesor lo confirme.
 Termina casi siempre invitando a continuar la conversación de forma natural.
-
+${personality}
 Contexto de nuestros productos (uso interno, no lo recites literal):
 ${context || '(sin productos configurados)'}`;
 

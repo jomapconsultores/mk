@@ -104,6 +104,7 @@ export async function saveMessage(opts: {
   aiIntent?: string;
   aiAnalysis?: unknown;
   externalId?: string;
+  agentId?: string;
 }): Promise<void> {
   await db.from('messages').insert({
     conversation_id: opts.conversationId,
@@ -115,6 +116,7 @@ export async function saveMessage(opts: {
     ai_intent: opts.aiIntent ?? null,
     ai_analysis: opts.aiAnalysis ?? null,
     external_id: opts.externalId ?? null,
+    agent_id: opts.agentId ?? null,
   });
 
   const stamp =
@@ -200,4 +202,30 @@ export async function getSalesContext(): Promise<{ catalog: string; context: str
     )
     .join('\n');
   return { catalog, context };
+}
+
+// =============================================================================
+// AGENTES IA — configuración de personalidad/comportamiento sin código.
+// Solo puede haber un agente con status='published' a la vez (garantizado por
+// un índice único parcial en la base de datos, ver db/add_ai_agents.sql).
+// =============================================================================
+export type AiAgent = {
+  id: string;
+  name: string;
+  instructions: string;
+  capabilities: string[];
+  status: 'draft' | 'published';
+  published_at: string | null;
+};
+
+/** Devuelve el agente actualmente publicado, o null si ninguno lo está. */
+export async function getPublishedAgent(): Promise<AiAgent | null> {
+  const { data } = await db.from('ai_agents').select('*').eq('status', 'published').maybeSingle();
+  return (data as AiAgent) ?? null;
+}
+
+/** Devuelve un agente por id (borrador o publicado) — usado por el Playground. */
+export async function getAgentById(id: string): Promise<AiAgent | null> {
+  const { data } = await db.from('ai_agents').select('*').eq('id', id).maybeSingle();
+  return (data as AiAgent) ?? null;
 }

@@ -17,6 +17,7 @@ export async function generateReply(opts: {
   salesContext: string;
   psychProfile?: PsychProfile;
   stage?: string;
+  agentInstructions?: string; // personalidad/comportamiento del Agente IA publicado (opcional)
 }): Promise<string> {
 
   // ── Contexto psicológico ──────────────────────────────────────────────────
@@ -53,7 +54,10 @@ ${urgencyHint}
 
 ═══ ESTRATEGIA DE ESTA RESPUESTA ═══
 ${approachHint}
-
+${opts.agentInstructions ? `
+═══ INSTRUCCIONES DEL EQUIPO PARA ESTE AGENTE ═══
+${opts.agentInstructions}
+` : ''}
 ═══ REGLAS DE ORO ═══
 1. Responde como en un chat real: corto, natural (1-4 líneas). NUNCA un ensayo.
 2. Valida PRIMERO emocionalmente antes de informar o proponer. El cliente debe sentirse escuchado.

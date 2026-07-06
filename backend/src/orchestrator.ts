@@ -1,10 +1,12 @@
 import { classifyMessage } from './ai/classify.js';
 import { generateReply } from './ai/reply.js';
 import { analyzePsychology } from './ai/psychology.js';
+import { ESCALATE_MARKER } from './ai/agents.js';
 import {
   applyClassification,
   findOrCreateContact,
   getOrCreateConversation,
+  getPublishedAgent,
   getSalesContext,
   mergeContactInfo,
   optOutContact,
@@ -106,10 +108,21 @@ export async function handleInboundMessage(opts: {
 
   if (contact.marketing_opted_out) return;
 
+  // ── AGENTE IA PUBLICADO ──────────────────────────────────────────────────
+  // Sin agente publicado, el default es "responder siempre" (comportamiento
+  // idéntico al que existía antes de este módulo). Un agente publicado puede
+  // desactivar capacidades puntuales vía sus checkboxes.
+  const agent = await getPublishedAgent();
+  const caps = new Set(agent?.capabilities ?? []);
+
+  const shouldAutoReply = !agent || caps.has('chat_whatsapp');
+  if (!shouldAutoReply) return; // conversación queda para atención humana
+
   // ── PERFIL PSICOLÓGICO ───────────────────────────────────────────────────
   // Se analiza en segundo plano solo si hay suficiente historial o mensaje significativo
   let psychProfile;
-  if (opts.text.length > 15 || history.length > 0) {
+  const wantsPsych = !agent || caps.has('psych_profiling');
+  if (wantsPsych && (opts.text.length > 15 || history.length > 0)) {
     psychProfile = await analyzePsychology({
       messages:      history + `\n[Cliente]: ${opts.text}`,
       contactName:   contact.display_name,
@@ -119,19 +132,32 @@ export async function handleInboundMessage(opts: {
   }
 
   // ── RESPUESTA HIPER-PERSONALIZADA ────────────────────────────────────────
-  const reply = await generateReply({
+  const wantsCatalog = !agent || caps.has('use_catalog');
+  let reply = await generateReply({
     messageText:  opts.text,
     history,
     contactName:  contact.display_name,
-    salesContext: context,
+    salesContext: wantsCatalog ? context : '',
     psychProfile,
     stage:        contact.stage,
+    agentInstructions: agent?.instructions,
   });
+
+  // ── ESCALADO A HUMANO ────────────────────────────────────────────────────
+  // El prompt (agregado condicionalmente a agentInstructions al guardar el
+  // agente, ver dashboard/src/app/agentes/actions.ts) le pide al modelo
+  // responder EXACTAMENTE este marcador si detecta frustración fuerte o un
+  // pedido explícito de hablar con una persona.
+  if (agent && caps.has('escalate_on_frustration') && reply.includes(ESCALATE_MARKER)) {
+    await db.from('contacts').update({ needs_human: true }).eq('id', contact.id);
+    reply = 'Entiendo, ya te conecto con alguien de nuestro equipo. En un momento te escriben. 🙏';
+  }
 
   await sendByChannel(opts.channel, opts.externalId, reply);
   await saveMessage({
     conversationId, contactId: contact.id, channel: opts.channel,
     direction: 'outbound', body: reply, senderType: 'ai',
+    agentId: agent?.id,
   });
 }
 

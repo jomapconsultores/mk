@@ -15,6 +15,8 @@ const ICONS: Record<string, string> = {
   'analitica.audiencias': '🎯',
   'configuracion.productos': '📦',
   'configuracion.sistemas': '⚙️',
+  'agentes.gestion': '🤖',
+  'agentes.playground': '🧪',
 };
 
 export default function Nav({ permissions, isAdmin }: { permissions: string[]; isAdmin: boolean }) {

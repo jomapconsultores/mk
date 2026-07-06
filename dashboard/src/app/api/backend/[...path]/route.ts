@@ -18,6 +18,10 @@ const PROXY_ACCESS: Record<string, string[]> = {
   'calls/': ['ventas.pipeline', 'ventas.clientes'],
   'sequences/': ['automatizacion.seguimientos'],
   'products/': ['configuracion.productos'],
+  // Único prefijo de backend usado por el módulo de Agentes IA: el CRUD vive
+  // como Server Actions Supabase-directo (dashboard/src/app/agentes/actions.ts);
+  // solo la ejecución en vivo del LLM (Playground) pasa por el backend.
+  'agents/': ['agentes.playground'],
 };
 
 function requiredKeysFor(path: string[]): string[] | null {

@@ -48,6 +48,14 @@ export const MODULES: ModuleGroup[] = [
       { key: 'configuracion.sistemas', label: 'Mis sistemas', path: '/sistemas' },
     ],
   },
+  {
+    key: 'agentes',
+    label: 'Agentes IA',
+    submodules: [
+      { key: 'agentes.gestion', label: 'Gestión de agentes', path: '/agentes' },
+      { key: 'agentes.playground', label: 'Playground', path: '/agentes/playground' },
+    ],
+  },
 ];
 
 export const ALL_SUBMODULE_KEYS = MODULES.flatMap((m) => m.submodules.map((s) => s.key));
@@ -57,6 +65,13 @@ const PATH_ALIASES: Record<string, string> = {
   '/leads/': 'ventas.clientes', // /leads/[id]
   '/products/': 'configuracion.productos', // /products/[id]
   '/import': 'captacion.prospeccion', // alias legacy -> Prospección
+  // Necesario: sin este alias explícito, el loop genérico de abajo resolvería
+  // '/agentes/playground' contra 'agentes.gestion' (path '/agentes') porque
+  // ese submódulo aparece primero en el array y startsWith('/agentes') también
+  // matchea el path del Playground. '/agentes/[id]' (el wizard) sí puede
+  // resolverse por el loop genérico sin problema, porque hereda el mismo
+  // permiso ('agentes.gestion') que su padre.
+  '/agentes/playground': 'agentes.playground',
 };
 
 export function submoduleForPath(pathname: string): string | null {
