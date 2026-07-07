@@ -28,8 +28,8 @@ Abre http://localhost:3001
 
 | Variable | Para qué |
 |---|---|
-| `NEXT_PUBLIC_BACKEND_URL` | URL pública del backend — se incrusta en el bundle en build-time |
 | `BACKEND_URL` | URL del backend — usada en runtime, server-side |
+| `LANDING_URL` | A dónde se envía a un visitante sin sesión que entra a `/` (deploy del landing público). Si falta, cae a `/login` |
 | `SUPABASE_URL` | URL de tu proyecto Supabase |
 | `SUPABASE_SERVICE_KEY` | service_role (secreta, solo servidor) |
 | `DASHBOARD_PASSWORD` | Clave de acceso al panel (login con contraseña) |

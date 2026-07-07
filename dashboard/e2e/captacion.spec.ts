@@ -12,7 +12,7 @@ const MERCADO_MOCK = {
 };
 
 test.beforeEach(async ({ context, baseURL }) => {
-  const token = await signSession('e2e@test.local', process.env.SESSION_SECRET ?? E2E_SESSION_SECRET);
+  const token = await signSession('e2e@test.local', 'admin', process.env.SESSION_SECRET ?? E2E_SESSION_SECRET);
   await context.addCookies([{ name: SESSION_COOKIE, value: token, url: baseURL }]);
 });
 

@@ -6,11 +6,6 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# IMPORTANTE: las variables NEXT_PUBLIC_* se incrustan en el bundle en build-time.
-# En Coolify hay que declararlas como "Build Variable" para que lleguen a este ARG.
-ARG NEXT_PUBLIC_BACKEND_URL
-ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
-
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
