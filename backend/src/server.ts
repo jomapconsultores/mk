@@ -1,3 +1,15 @@
+// Sentry: init lo MÁS ARRIBA posible, antes de instrumentar otros imports.
+// Solo se activa si SENTRY_DSN está definida; sin DSN es NO-OP total.
+import * as Sentry from '@sentry/node';
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? 'production',
+    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? '0'),
+    sendDefaultPii: false,
+  });
+}
+
 import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import multipart from '@fastify/multipart';
@@ -16,6 +28,12 @@ import { getAgentById, getSalesContext } from './repo.js';
 import { generateReply } from './ai/reply.js';
 
 const app = Fastify({ logger: true });
+
+// Captura de errores hacia Sentry (v8+). Solo si SENTRY_DSN está definida.
+// No cambia la respuesta al cliente; solo reporta las excepciones.
+if (process.env.SENTRY_DSN) {
+  Sentry.setupFastifyErrorHandler(app);
+}
 
 // Soporte para uploads multipart (PDF, Excel, CSV)
 app.register(multipart, {
