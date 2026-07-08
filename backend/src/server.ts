@@ -10,6 +10,7 @@ if (process.env.SENTRY_DSN) {
   });
 }
 
+import crypto from 'node:crypto';
 import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import multipart from '@fastify/multipart';
@@ -47,7 +48,11 @@ app.register(formbody);
 app.register(websocketPlugin);
 
 // Tolerar cuerpos JSON vacios (el cron puede llegar sin body): se interpretan como {}.
-app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  // Guardamos el cuerpo CRUDO (sin trim ni re-serializar) en req.rawBody para poder
+  // verificar la firma HMAC del webhook de WhatsApp: Meta firma el body exacto que
+  // envía. Solo lo consume la ruta POST /webhooks/whatsapp; el resto lo ignora.
+  (req as FastifyRequest & { rawBody?: string }).rawBody = body as string;
   const text = (body as string)?.trim();
   if (!text) return done(null, {});
   try {
@@ -89,6 +94,63 @@ function requireInternalAuth(req: FastifyRequest, reply: FastifyReply): boolean 
     return false;
   }
   return true;
+}
+
+// ============================================================
+// Endurecimiento del webhook entrante de WhatsApp
+// ============================================================
+
+// FIX 1 — Verificacion de la firma X-Hub-Signature-256.
+// Meta firma el cuerpo CRUDO con HMAC-SHA256 usando el "App Secret" de la app de
+// Meta. Comparamos en tiempo constante. FAIL-SAFE: si WHATSAPP_APP_SECRET no esta
+// configurada, NO bloqueamos (solo avisamos una vez) para no romper la recepcion
+// antes de configurarla. Si esta configurada y la firma no cuadra, se rechaza.
+let warnedMissingAppSecret = false;
+function verifyWhatsAppSignature(req: FastifyRequest): boolean {
+  const secret = process.env.WHATSAPP_APP_SECRET;
+  if (!secret) {
+    if (!warnedMissingAppSecret) {
+      warnedMissingAppSecret = true;
+      app.log.warn(
+        'WHATSAPP_APP_SECRET no definida: se OMITE la verificacion de firma del webhook de WhatsApp (fail-safe). Configurala para endurecer la recepcion.',
+      );
+    }
+    return true;
+  }
+
+  const header = req.headers['x-hub-signature-256'];
+  const signature = Array.isArray(header) ? header[0] : header;
+  if (!signature) return false;
+
+  const rawBody = (req as FastifyRequest & { rawBody?: string }).rawBody;
+  if (rawBody === undefined) return false;
+
+  const expected =
+    'sha256=' + crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
+
+  // timingSafeEqual exige buffers de igual longitud; si difieren, no coincide.
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// FIX 2 — Idempotencia por messageId. WhatsApp reintenta la entrega, asi que el
+// mismo mensaje puede llegar varias veces. Deduplicamos con un Map en memoria con
+// TTL (~10 min): la ventana de reintentos de Meta es corta, es la opcion menos
+// invasiva y no requiere tocar la base de datos.
+const DEDUP_TTL_MS = 10 * 60 * 1000;
+const seenMessageIds = new Map<string, number>();
+function isDuplicateWhatsAppMessage(id: string): boolean {
+  const now = Date.now();
+  // Limpieza perezosa de entradas vencidas para no crecer sin limite.
+  for (const [key, ts] of seenMessageIds) {
+    if (now - ts >= DEDUP_TTL_MS) seenMessageIds.delete(key);
+  }
+  const prev = seenMessageIds.get(id);
+  if (prev !== undefined && now - prev < DEDUP_TTL_MS) return true;
+  seenMessageIds.set(id, now);
+  return false;
 }
 
 // Raiz: pagina informativa (el backend es una API, no un sitio web).
@@ -160,12 +222,25 @@ app.get('/webhooks/whatsapp', async (req, reply) => {
 
 // --- Recepcion de mensajes de WhatsApp ---
 app.post('/webhooks/whatsapp', async (req, reply) => {
+  // FIX 1 — Verificar la firma ANTES de responder/procesar. Si esta configurado el
+  // app secret y la firma no coincide, rechazamos (401) y no procesamos nada.
+  if (!verifyWhatsAppSignature(req)) {
+    app.log.warn('Webhook de WhatsApp con firma X-Hub-Signature-256 invalida: se rechaza.');
+    return reply.code(401).send('Firma invalida');
+  }
+
   // Responder rapido a Meta y procesar en segundo plano.
   reply.code(200).send('EVENT_RECEIVED');
 
   try {
     const incoming = parseWhatsAppWebhook(req.body);
     for (const msg of incoming) {
+      // FIX 2 — Saltar el PROCESAMIENTO de mensajes ya vistos (WhatsApp reintenta).
+      // La respuesta a Meta sigue siendo 200 para que no reintente en bucle.
+      if (msg.messageId && isDuplicateWhatsAppMessage(msg.messageId)) {
+        app.log.info({ messageId: msg.messageId }, 'Mensaje de WhatsApp duplicado: se omite el procesamiento.');
+        continue;
+      }
       await handleInboundMessage({
         channel: 'whatsapp',
         externalId: msg.from,
