@@ -23,9 +23,11 @@ export async function login(formData: FormData) {
   }
 
   // Contraseña propia del usuario si la tiene; si no, la contraseña compartida del equipo.
+  // Si DASHBOARD_PASSWORD no está definida (o es vacía) NO se acepta una contraseña vacía: fail-closed.
+  const shared = process.env.DASHBOARD_PASSWORD;
   const ok = data.password_hash
     ? await verifyPassword(password, data.password_hash)
-    : password === (process.env.DASHBOARD_PASSWORD ?? '');
+    : (!!shared && password === shared);
   if (!ok) {
     redirect('/login?error=1');
   }

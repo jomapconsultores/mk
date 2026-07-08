@@ -18,6 +18,10 @@ COPY . .
 # Coolify inyecta PORT; el server lo lee en config.ts (default 3000).
 ENV NODE_ENV=production
 ENV PORT=3000
+# Zona horaria del negocio (Ecuador, UTC-5). Sin esto Node corre en UTC y los
+# "quiet hours"/ventanas de envío (getHours()) se calculan mal → mensajes de
+# madrugada. tzdata ya está instalado arriba.
+ENV TZ=America/Guayaquil
 EXPOSE 3000
 
 # Healthcheck contra el endpoint /health que ya expone el server.

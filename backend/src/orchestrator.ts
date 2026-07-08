@@ -17,11 +17,24 @@ import { sendByChannel } from './channels/send.js';
 import { db } from './db.js';
 import { convertProspectToContact } from './prospecting/engine.js';
 
-const STOP_WORDS = ['stop', 'baja', 'darme de baja', 'no me interesa', 'no escriban', 'unsubscribe'];
+const STOP_WORDS = ['stop', 'dar de baja', 'darme de baja', 'no me interesa', 'no escriban', 'unsubscribe'];
 
 function isStopWord(text: string): boolean {
-  const t = text.toLowerCase();
-  return STOP_WORDS.some((w) => t.includes(w));
+  // Comparación por palabra completa (rodeada de espacios) tras normalizar, para
+  // NO dar de baja por substring: 'rebaja', 'trabajando' o 'cuando baja el precio'
+  // ya no disparan opt-out. La intención 'pedir_baja' del clasificador IA sigue
+  // siendo la señal primaria en handleInboundMessage/handleWebLead.
+  const t =
+    ' ' +
+    text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() +
+    ' ';
+  return STOP_WORDS.some((w) => t.includes(' ' + w + ' '));
 }
 
 /** Recupera los últimos N mensajes del contacto como texto plano para contexto. */
