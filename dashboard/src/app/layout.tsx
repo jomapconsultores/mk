@@ -6,6 +6,7 @@ import GuidePanel from './GuidePanel';
 import RoleSwitcher from './RoleSwitcher';
 import { getCurrentUser } from '@/lib/access';
 import { logout } from './login/actions';
+import IdleLogout from '@/components/IdleLogout';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         {email ? (
           <div className="app">
+            <IdleLogout />
             <aside className="sidebar">
               <div className="brand" style={{ padding: '16px 12px 12px', display: 'block' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -5,7 +5,7 @@ import {
 } from '@simplewebauthn/server';
 import { cookies } from 'next/headers';
 import { getAdmin } from '@/lib/supabase-admin';
-import { SESSION_COOKIE, signSession } from '@/lib/auth';
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, signSession } from '@/lib/auth';
 import { defaultActiveRole } from '@/lib/roles';
 
 const RP_ID  = process.env.WEBAUTHN_RP_ID  ?? 'localhost';
@@ -105,7 +105,7 @@ export async function PUT(req: NextRequest) {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge:   60 * 60 * 24 * 30,
+    maxAge:   SESSION_MAX_AGE_SECONDS,
     path:     '/',
   });
   res.cookies.delete(CH_COOKIE);

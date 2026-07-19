@@ -35,9 +35,16 @@ function safeEqual(a: string, b: string): boolean {
 
 export const SESSION_COOKIE = 'mm_session';
 
+// Cierre de sesión por inactividad: 30 minutos sin actividad.
+// El token lleva un timestamp `ts` que el middleware refresca en cada
+// request (sliding). La cookie usa este mismo maxAge, así que si no hay
+// peticiones durante 30 min la cookie caduca sola.
+export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+export const SESSION_MAX_AGE_SECONDS = 30 * 60;
+
 /** Crea el token de sesión firmado para un email + rol activo. */
 export async function signSession(email: string, role: string, secret: string): Promise<string> {
-  const payload = JSON.stringify({ email, role });
+  const payload = JSON.stringify({ email, role, ts: Date.now() });
   const sig = toB64url(await hmac(payload, secret));
   return toB64url(te.encode(payload)) + '.' + sig;
 }
@@ -92,8 +99,12 @@ export async function verifySession(
   const expected = toB64url(await hmac(raw, secret));
   if (!safeEqual(sig, expected)) return null;
   try {
-    const { email, role } = JSON.parse(raw);
+    const { email, role, ts } = JSON.parse(raw);
     if (typeof email !== 'string' || typeof role !== 'string') return null;
+    // Inactividad: rechaza el token si pasaron más de 30 min desde la última
+    // actividad. (Los tokens antiguos sin `ts` se aceptan una vez y el
+    // middleware los reemite ya con timestamp.)
+    if (typeof ts === 'number' && Date.now() - ts > IDLE_TIMEOUT_MS) return null;
     return { email, role };
   } catch {
     return null;

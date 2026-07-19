@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getAdmin } from '@/lib/supabase-admin';
-import { SESSION_COOKIE, signSession, verifySession } from '@/lib/auth';
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, signSession, verifySession } from '@/lib/auth';
 
 /** Cambia el rol activo de la sesión, re-verificando server-side que el usuario aún lo tiene asignado. */
 export async function switchActiveRole(newRoleKey: string, redirectTo: string) {
@@ -34,7 +34,7 @@ export async function switchActiveRole(newRoleKey: string, redirectTo: string) {
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
   redirect(redirectTo);
 }

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { SESSION_COOKIE, verifySession } from '@/lib/auth';
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, signSession, verifySession } from '@/lib/auth';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -15,7 +15,20 @@ export async function middleware(req: NextRequest) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+
+  // Sesión válida: reemite la cookie con timestamp fresco y maxAge de 30 min
+  // (ventana deslizante). Si el usuario deja de navegar 30 min, la cookie
+  // caduca y el próximo request lo manda a /login.
+  const res = NextResponse.next();
+  const fresh = await signSession(session.email, session.role, process.env.SESSION_SECRET ?? '');
+  res.cookies.set(SESSION_COOKIE, fresh, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  });
+  return res;
 }
 
 export const config = {
