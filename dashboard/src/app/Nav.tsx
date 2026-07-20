@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { MODULES } from '@/lib/modules';
 
@@ -20,7 +20,28 @@ const ICONS: Record<string, string> = {
   'agentes.playground': '🧪',
 };
 
-export default function Nav({ permissions, isAdmin }: { permissions: string[]; isAdmin: boolean }) {
+// Ícono y etiqueta corta de cada módulo para la primera columna (el riel).
+// La etiqueta larga del grupo se muestra como título de la segunda columna.
+const GROUPS: Record<string, { icon: string; short: string }> = {
+  captacion: { icon: '🎣', short: 'Captación' },
+  ventas: { icon: '💼', short: 'Ventas' },
+  automatizacion: { icon: '⚡', short: 'Automatiz.' },
+  analitica: { icon: '📊', short: 'Analítica' },
+  configuracion: { icon: '⚙️', short: 'Config.' },
+  agentes: { icon: '🤖', short: 'Agentes IA' },
+};
+
+export default function Nav({
+  permissions,
+  isAdmin,
+  brand,
+  foot,
+}: {
+  permissions: string[];
+  isAdmin: boolean;
+  brand?: ReactNode;
+  foot?: ReactNode;
+}) {
   const path = usePathname();
   const allowed = new Set(permissions);
   const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
@@ -35,19 +56,58 @@ export default function Nav({ permissions, isAdmin }: { permissions: string[]; i
     return { ...group, submodules };
   }).filter((group) => group.submodules.length > 0);
 
+  // El grupo que se despliega es el que el usuario abrió a mano (openKey) o,
+  // si no abrió ninguno, el grupo al que pertenece la página actual.
+  const activeKey = groups.find((g) => g.submodules.some((s) => isActive(s.path)))?.key ?? groups[0]?.key;
+  const [openKey, setOpenKey] = useState<string | null>(null);
+
+  // Al navegar, se suelta la selección manual: vuelve a mandar la ruta actual
+  // (y en móvil eso cierra el desplegable, que allí flota sobre el contenido).
+  useEffect(() => {
+    setOpenKey(null);
+  }, [path]);
+
+  const currentKey = openKey ?? activeKey;
+  const current = groups.find((g) => g.key === currentKey) ?? groups[0];
+
   return (
-    <nav className="nav">
-      {groups.map((group) => (
-        <Fragment key={group.key}>
-          <div className="nav-section">{group.label}</div>
-          {group.submodules.map((s) => (
+    <>
+      <div className="rail">
+        {brand}
+        <div className="rail-items">
+          {groups.map((group) => {
+            const meta = GROUPS[group.key] ?? { icon: '📁', short: group.label };
+            const selected = group.key === currentKey;
+            const hasActivePage = group.submodules.some((s) => isActive(s.path));
+            return (
+              <button
+                key={group.key}
+                type="button"
+                title={group.label}
+                aria-expanded={selected}
+                className={`rail-item${selected ? ' selected' : ''}${hasActivePage ? ' current' : ''}`}
+                onClick={() => setOpenKey(group.key)}
+              >
+                <span className="ico">{meta.icon}</span>
+                <span className="rail-label">{meta.short}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={`subnav${openKey ? ' open' : ''}`}>
+        <div className="nav-section">{current?.label}</div>
+        <nav className="nav">
+          {current?.submodules.map((s) => (
             <a key={s.key} href={s.path} className={isActive(s.path) ? 'active' : ''}>
               <span className="ico">{ICONS[s.key] ?? '👤'}</span>
               <span>{s.label}</span>
             </a>
           ))}
-        </Fragment>
-      ))}
-    </nav>
+        </nav>
+        {foot}
+      </div>
+    </>
   );
 }

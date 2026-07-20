@@ -52,20 +52,27 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <div className="app">
             <IdleLogout />
             <aside className="sidebar">
-              <div className="brand" style={{ padding: '16px 12px 12px', display: 'block' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/map-logo.png"
-                  alt="MAP Consultoría & Asesoría Marketing"
-                  style={{ width: '100%', maxWidth: 160, borderRadius: 8, display: 'block', margin: '0 auto' }}
-                />
-              </div>
-              <Nav permissions={user ? [...user.permissions] : []} isAdmin={user?.isAdmin ?? false} />
-              <div className="sidebar-foot" style={{ fontSize: 10, lineHeight: 1.5, padding: '12px 14px', textAlign: 'center' }}>
-                <div style={{ marginBottom: 3 }}>© 2026 Marketing MAP</div>
-                <div style={{ color: 'var(--muted)', fontSize: 9 }}>Desarrollado por</div>
-                <div style={{ fontWeight: 600, fontSize: 10 }}>Marco Antonio Posligua San Martín</div>
-              </div>
+              <Nav
+                permissions={user ? [...user.permissions] : []}
+                isAdmin={user?.isAdmin ?? false}
+                brand={
+                  <div className="brand" style={{ padding: '14px 8px 10px', display: 'block' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/map-logo.png"
+                      alt="MAP Consultoría & Asesoría Marketing"
+                      style={{ width: '100%', maxWidth: 60, borderRadius: 8, display: 'block', margin: '0 auto' }}
+                    />
+                  </div>
+                }
+                foot={
+                  <div className="sidebar-foot" style={{ fontSize: 10, lineHeight: 1.5, padding: '12px 14px', textAlign: 'center' }}>
+                    <div style={{ marginBottom: 3 }}>© 2026 Marketing MAP</div>
+                    <div style={{ color: 'var(--muted)', fontSize: 9 }}>Desarrollado por</div>
+                    <div style={{ fontWeight: 600, fontSize: 10 }}>Marco Antonio Posligua San Martín</div>
+                  </div>
+                }
+              />
             </aside>
 
             <div className="content">

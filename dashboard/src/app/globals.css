@@ -39,10 +39,35 @@ a:hover { text-decoration: underline; }
 .content { flex: 1; display: flex; flex-direction: column; min-width: 0; margin-left: 248px; }
 
 /* ---------- Barra lateral ---------- */
+/* Dos columnas: riel de módulos (izq.) + submenús del módulo abierto (der.).
+   El ancho total (88 + 160) se mantiene en 248px para no mover .content. */
 .sidebar {
   width: 248px; background: var(--sidebar); color: var(--sidebar-text);
-  padding: 22px 16px; position: fixed; top: 0; left: 0; height: 100vh;
-  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+  position: fixed; top: 0; left: 0; height: 100vh;
+  display: flex; flex-direction: row; flex-shrink: 0;
+}
+.rail {
+  width: 88px; flex-shrink: 0; height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; padding: 8px 6px 12px;
+  background: rgba(0,0,0,.22); border-right: 1px solid rgba(255,255,255,.06);
+}
+.rail-items { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.rail-item {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 4px; border-radius: 10px; border: 0; width: 100%;
+  background: transparent; color: var(--sidebar-text); cursor: pointer;
+  font-family: inherit; font-size: 10.5px; font-weight: 600; line-height: 1.15;
+  text-align: center; transition: all .15s;
+}
+.rail-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.rail-item.selected { background: rgba(255,255,255,.10); color: #fff; }
+.rail-item.current { box-shadow: inset 3px 0 0 var(--sidebar-active); }
+.rail-item .ico { font-size: 19px; line-height: 1; }
+.rail-label { display: block; word-break: break-word; }
+
+.subnav {
+  flex: 1; min-width: 0; height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; padding: 18px 12px 12px;
 }
 .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 22px; }
 .brand .mark {
@@ -168,9 +193,19 @@ button.danger:hover { background: #dc2626; }
 .login-foot { margin-top: 20px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 760px) {
-  .sidebar { width: 70px; padding: 18px 10px; }
-  .content { margin-left: 70px; }
-  .brand .name, .brand .tag, .nav a span:not(.ico), .nav-section, .sidebar-foot { display: none; }
+  /* En móvil solo se ve el riel; la segunda columna se despliega flotando
+     sobre el contenido al tocar un módulo, y se cierra sola al navegar. */
+  .sidebar { width: 76px; overflow: visible; }
+  .content { margin-left: 76px; }
+  .rail { width: 76px; }
+  .rail-item .ico { font-size: 21px; }
+  .subnav {
+    display: none; position: absolute; top: 0; left: 76px; width: 200px;
+    background: var(--sidebar); border-right: 1px solid rgba(255,255,255,.06);
+    box-shadow: 8px 0 24px rgba(0,0,0,.35); z-index: 30;
+  }
+  .subnav.open { display: flex; }
+  .brand .name, .brand .tag { display: none; }
   .main { padding: 20px 16px; }
   .row2 { grid-template-columns: 1fr; }
 }
