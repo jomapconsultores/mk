@@ -233,8 +233,14 @@ export default async function ProspeccionPage({
                     {p.location && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{p.location}</div>}
                   </td>
                   <td style={{ fontSize: 12 }}>
-                    {p.email && <div>{p.email}</div>}
-                    {p.phone && <div>{p.phone}</div>}
+                    {p.email && <div><a href={`mailto:${p.email}`}>{p.email}</a></div>}
+                    {p.phone && (
+                      <div>
+                        {/* Solo tel: — el primer toque por WhatsApp a quien nunca
+                            escribió está bloqueado también en el backend. */}
+                        <a href={`tel:${String(p.phone).replace(/[^\d+]/g, '')}`}>{p.phone}</a>
+                      </div>
+                    )}
                   </td>
                   <td>
                     {p.fit_score != null ? (

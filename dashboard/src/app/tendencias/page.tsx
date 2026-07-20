@@ -41,14 +41,25 @@ function Bars({ rows, empty }: { rows: Row[]; empty: string }) {
 export default async function Tendencias() {
   await requireAccess('analitica.tendencias');
   const db = getAdmin();
+  // El .limit(5000) sin orden devolvía un recorte arbitrario: al pasar de 5.000
+  // filas los porcentajes cambiaban solos sin aviso. Con orden descendente el
+  // recorte es siempre "los más recientes" y se avisa cuando se está truncando.
+  const PAGE = 5000;
   const { data: contacts } = await db
     .from('contacts')
     .select('created_at, source_channel, interested_product_id, marketing_opted_out, stage, interest_level')
-    .limit(5000);
+    .order('created_at', { ascending: false })
+    .limit(PAGE);
   const { data: products } = await db.from('products').select('id, name');
-  const { data: msgs } = await db.from('messages').select('ai_intent').eq('direction', 'inbound').limit(5000);
+  const { data: msgs } = await db
+    .from('messages')
+    .select('ai_intent')
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(PAGE);
 
   const C = contacts ?? [];
+  const truncated = C.length >= PAGE;
   const total = C.length;
   const customers = C.filter((c) => c.stage === 'customer').length;
   const optedOut = C.filter((c) => c.marketing_opted_out).length;
@@ -77,6 +88,12 @@ export default async function Tendencias() {
     <>
       <h2>Tendencias</h2>
       <p className="subtitle">Insights de tus propios datos (sin vigilar a nadie): de dónde vienen, qué les interesa y cómo convierten.</p>
+
+      {truncated && (
+        <p className="subtitle" style={{ color: '#b45309' }}>
+          ⚠️ Mostrando solo los {PAGE.toLocaleString('es')} contactos más recientes: los porcentajes no cubren toda la base.
+        </p>
+      )}
 
       <div className="cards">
         <div className="card"><div className="num">{total}</div><div className="lbl">Leads analizados</div></div>

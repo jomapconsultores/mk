@@ -745,6 +745,82 @@
   const formView = document.getElementById("form-view");
   const okView   = document.getElementById("ok-view");
 
+  // Rellena estos dos para que, si el backend no responde, el visitante tenga
+  // una vía directa en vez de un lead perdido. Ej: "593999999999" y "hola@tudominio.com".
+  const CONTACTO_WHATSAPP = "";
+  const CONTACTO_EMAIL    = "";
+
+  // Si el POST falla, el lead se guarda aquí y se reintenta al volver a cargar
+  // la página: antes se perdía entero y el visitante creía que no se envió.
+  const PENDIENTE = "map_lead_pendiente";
+
+  // Versión del texto de consentimiento que el visitante acepta. Súbela cuando
+  // cambie la política: queda registrada junto al lead como evidencia.
+  const POLITICA_VERSION = "2026-07";
+  const CONSENT_TEXTO = document.querySelector(".consent-label span")?.innerText?.trim() ?? "";
+
+  // Atribución first-touch: los UTM se guardan en el primer aterrizaje y
+  // sobreviven a la navegación interna. Sin esto, todos los leads de anuncios
+  // llegan indistinguibles como "web" y no hay forma de calcular coste por lead.
+  const UTM_KEYS = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","ttclid","msclkid"];
+  const UTM_STORE = "map_utm_first_touch";
+
+  function capturarUtm() {
+    try {
+      if (sessionStorage.getItem(UTM_STORE)) return; // first-touch: no se pisa
+      const params = new URLSearchParams(location.search);
+      const found = {};
+      for (const k of UTM_KEYS) {
+        const v = params.get(k);
+        if (v) found[k] = v.slice(0, 200);
+      }
+      if (document.referrer) found.referrer = document.referrer.slice(0, 200);
+      if (Object.keys(found).length) sessionStorage.setItem(UTM_STORE, JSON.stringify(found));
+    } catch {}
+  }
+  capturarUtm();
+
+  function leerUtm() {
+    try { return JSON.parse(sessionStorage.getItem(UTM_STORE) || "{}"); } catch { return {}; }
+  }
+
+  async function enviarLead(payload) {
+    const res = await fetch(BACKEND + "/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("status " + res.status);
+  }
+
+  // Reintento silencioso de un envío anterior que quedó a medias.
+  (async () => {
+    let pendiente = null;
+    try { pendiente = JSON.parse(localStorage.getItem(PENDIENTE) || "null"); } catch {}
+    if (!pendiente) return;
+    try {
+      await enviarLead(pendiente);
+      localStorage.removeItem(PENDIENTE);
+    } catch {}
+  })();
+
+  function mostrarAlternativas(payload) {
+    const resumen = `Hola, quiero una demo. Nombre: ${payload.name || "-"}. Tel: ${payload.phone || "-"}. ${payload.message || ""}`.trim();
+    const enlaces = [];
+    if (CONTACTO_WHATSAPP) {
+      enlaces.push(`<a href="https://wa.me/${CONTACTO_WHATSAPP}?text=${encodeURIComponent(resumen)}" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>`);
+    }
+    if (CONTACTO_EMAIL) {
+      enlaces.push(`<a href="mailto:${CONTACTO_EMAIL}?subject=${encodeURIComponent("Quiero una demo")}&body=${encodeURIComponent(resumen)}">Escríbenos por correo</a>`);
+    }
+    const aviso = document.createElement("p");
+    aviso.style.cssText = "margin-top:12px;font-size:14px;line-height:1.6";
+    aviso.innerHTML = enlaces.length
+      ? `No pudimos enviar el formulario, pero tus datos quedaron guardados y lo reintentaremos solos. Si prefieres, contáctanos ya: ${enlaces.join(" · ")}`
+      : "No pudimos enviar el formulario ahora mismo. Tus datos quedaron guardados en este navegador y lo reintentaremos automáticamente cuando vuelvas a abrir la página.";
+    form.appendChild(aviso);
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name    = form.name.value.trim();
@@ -761,19 +837,36 @@
     btn.disabled = true;
     btn.textContent = "Enviando…";
 
+    // El consentimiento tiene que VIAJAR: antes el checkbox era solo validación
+    // del navegador y en la base no quedaba ninguna evidencia de que se aceptó.
+    const consentOk = document.getElementById("consent")?.checked === true;
+    if (!consentOk) {
+      alert("Necesitamos tu autorización para poder contactarte.");
+      return;
+    }
+
+    const payload = {
+      name, phone, email,
+      message: company ? `${message} | Empresa: ${company}` : message,
+      consent: true,
+      consent_text: CONSENT_TEXTO,
+      policy_version: POLITICA_VERSION,
+      utm: leerUtm(),
+    };
+
+    // Se guarda ANTES de la petición: si el navegador se cierra o la red cae a
+    // mitad, el lead sigue existiendo y se reintenta al volver.
+    try { localStorage.setItem(PENDIENTE, JSON.stringify(payload)); } catch {}
+
     try {
-      const res = await fetch(BACKEND + "/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, message: company ? `${message} | Empresa: ${company}` : message }),
-      });
-      if (!res.ok) throw new Error("status " + res.status);
+      await enviarLead(payload);
+      try { localStorage.removeItem(PENDIENTE); } catch {}
       formView.classList.add("hidden");
       okView.classList.remove("hidden");
     } catch {
-      alert("Hubo un problema al enviar. Por favor inténtalo de nuevo.");
       btn.disabled = false;
       btn.textContent = "Quiero mi demo gratuita →";
+      mostrarAlternativas(payload);
     }
   });
 </script>

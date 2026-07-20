@@ -195,9 +195,44 @@ export async function confirmOrder(orderId: string) {
     .eq('order_id', orderId);
   if (!count) return; // sin líneas: no se puede confirmar un pedido vacío
 
-  await db.from('orders').update({ status: 'confirmed' }).eq('id', orderId).eq('status', 'draft');
+  // Update condicional con .select(): si otra sesión confirmó el pedido
+  // entremedias, `updated` viene vacío y no se duplica el efecto en el embudo.
+  const { data: updated } = await db
+    .from('orders')
+    .update({ status: 'confirmed' })
+    .eq('id', orderId)
+    .eq('status', 'draft')
+    .select('id, total, currency');
+
+  if (!updated?.length) return;
+
+  // Una venta confirmada es el único hecho duro del embudo: hasta ahora no
+  // movía la etapa del cliente ni dejaba rastro, así que el tablero podía
+  // facturar miles de dólares y seguir mostrando cero clientes.
+  const { data: contact } = await db
+    .from('contacts')
+    .select('stage')
+    .eq('id', order.contact_id)
+    .maybeSingle();
+
+  if (contact && contact.stage !== 'customer' && contact.stage !== 'lost') {
+    await db.from('contacts').update({ stage: 'customer' }).eq('id', order.contact_id);
+  }
+
+  await db.from('events').insert({
+    contact_id: order.contact_id,
+    type: 'order_confirmed',
+    payload: {
+      order_id: orderId,
+      total: updated[0]?.total ?? null,
+      currency: updated[0]?.currency ?? null,
+      previous_stage: contact?.stage ?? null,
+    },
+  });
+
   revalidatePath('/pedidos');
   revalidatePath(`/pedidos/${orderId}`);
+  revalidatePath(`/leads/${order.contact_id}`);
 }
 
 /** Cambia el estado logístico de un pedido ya existente (fuera del wizard de creación). */
