@@ -18,14 +18,22 @@ import formbody from '@fastify/formbody';
 import websocketPlugin from '@fastify/websocket';
 import { config } from './config.js';
 import { parseWhatsAppWebhook } from './channels/whatsapp.js';
-import { handleInboundMessage, handleWebLead } from './orchestrator.js';
+import { captureWebLead, enrichWebLead, handleInboundMessage } from './orchestrator.js';
 import { runEngineOnce } from './sequences/engine.js';
 import { importProspectsFromCsv, qualifyAllNew } from './prospecting/importer.js';
 import { scrapeGoogleMaps } from './prospecting/scrapers/google-maps.js';
 import { runProspectingOnce } from './prospecting/engine.js';
 import { fileToText, extractContactsFromText } from './prospecting/smart-extractor.js';
 import { db } from './db.js';
-import { getAgentById, getSalesContext } from './repo.js';
+import {
+  getAgentById,
+  getChannelIdentity,
+  getOrCreateConversation,
+  getSalesContext,
+  saveMessage,
+  type Channel,
+} from './repo.js';
+import { sendByChannel } from './channels/send.js';
 import { generateReply } from './ai/reply.js';
 
 const app = Fastify({ logger: true });
@@ -152,6 +160,12 @@ function isDuplicateWhatsAppMessage(id: string): boolean {
   seenMessageIds.set(id, now);
   return false;
 }
+// Si el procesamiento falla, el mensaje NO quedo atendido: se olvida la marca
+// para que el reintento de Meta (o un reenvio del cliente) pueda procesarlo.
+// Sin esto, un fallo transitorio hace desaparecer el mensaje para siempre.
+function forgetWhatsAppMessage(id: string): void {
+  seenMessageIds.delete(id);
+}
 
 // Raiz: pagina informativa (el backend es una API, no un sitio web).
 app.get('/', async (_req, reply) => {
@@ -191,19 +205,93 @@ app.post('/cron/run-sequences', async (req, reply) => {
 
 // --- Captura de leads desde la landing / formularios web ---
 app.post('/capture', async (req, reply) => {
-  const b = (req.body ?? {}) as Record<string, string>;
+  const b = (req.body ?? {}) as Record<string, any>;
   try {
-    const { contactId } = await handleWebLead({
+    // El consentimiento debe llegar del formulario. Se acepta la ausencia del
+    // campo solo si el origen no lo manda todavía (integraciones antiguas), pero
+    // un `false` explícito se rechaza: sin autorización no se capta.
+    if (b.consent === false || b.consent === 'false') {
+      return reply.code(400).send({ ok: false, error: 'Falta la autorización para contactar.' });
+    }
+
+    // Fase síncrona: guardar el lead. Antes se esperaba a la clasificación con
+    // el LLM antes de responder, y si tardaba el navegador mostraba "hubo un
+    // problema" con el contacto ya creado.
+    const captured = await captureWebLead({
       name: b.name,
       email: b.email,
       phone: b.phone,
       message: b.message,
       interestedProduct: b.interested_product,
+      consent: b.consent === true || b.consent === 'true'
+        ? {
+            text: typeof b.consent_text === 'string' ? b.consent_text.slice(0, 500) : undefined,
+            policyVersion: typeof b.policy_version === 'string' ? b.policy_version.slice(0, 40) : undefined,
+            ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip,
+            userAgent: (req.headers['user-agent'] as string)?.slice(0, 300),
+          }
+        : undefined,
+      utm: typeof b.utm === 'object' && b.utm ? (b.utm as Record<string, string>) : undefined,
     });
-    return reply.code(200).send({ ok: true, contactId });
+    // Clasificación + acuse de recibo en segundo plano.
+    void enrichWebLead(captured).catch((err) => app.log.error({ err }, 'Error enriqueciendo lead web'));
+    return reply.code(200).send({ ok: true, contactId: captured.contactId });
   } catch (err) {
     app.log.error({ err }, 'Error en /capture');
     return reply.code(400).send({ ok: false, error: (err as Error).message });
+  }
+});
+
+// --- Respuesta manual del asesor desde el panel ---
+// Sin esto el vendedor tenía que salir a WhatsApp Web: su respuesta no entraba
+// en `messages`, así que el scoring quedaba ciego y las secuencias seguían
+// disparando encima de una conversación que ya llevaba un humano.
+app.post('/messages/send', async (req, reply) => {
+  if (!requireInternalAuth(req, reply)) return;
+  const b = (req.body ?? {}) as { contact_id?: string; body?: string; channel?: string };
+  const contactId = (b.contact_id ?? '').trim();
+  const text = (b.body ?? '').trim();
+  if (!contactId || !text) {
+    return reply.code(400).send({ ok: false, error: 'Faltan contact_id o body' });
+  }
+
+  try {
+    const { data: contact } = await db
+      .from('contacts')
+      .select('id, marketing_opted_out')
+      .eq('id', contactId)
+      .maybeSingle();
+    if (!contact) return reply.code(404).send({ ok: false, error: 'Contacto no encontrado' });
+    if (contact.marketing_opted_out) {
+      return reply.code(409).send({ ok: false, error: 'El contacto está dado de baja: no se le puede escribir.' });
+    }
+
+    const channel = (b.channel as Channel) ?? 'whatsapp';
+    const to = await getChannelIdentity(contactId, channel);
+    if (!to) {
+      return reply.code(422).send({ ok: false, error: `El contacto no tiene identidad en el canal ${channel}` });
+    }
+
+    await sendByChannel(channel, to, text);
+
+    const conversationId = await getOrCreateConversation(contactId, channel);
+    await saveMessage({
+      conversationId,
+      contactId,
+      channel,
+      direction: 'outbound',
+      body: text,
+      senderType: 'human',
+    });
+
+    // Si contesta un humano, la IA se calla en ese hilo: no puede pisar lo que
+    // el asesor acaba de negociar.
+    await db.from('conversations').update({ ai_autopilot: false }).eq('id', conversationId);
+
+    return reply.code(200).send({ ok: true });
+  } catch (err) {
+    app.log.error({ err }, 'Error en /messages/send');
+    return reply.code(500).send({ ok: false, error: (err as Error).message });
   }
 });
 
@@ -241,16 +329,26 @@ app.post('/webhooks/whatsapp', async (req, reply) => {
         app.log.info({ messageId: msg.messageId }, 'Mensaje de WhatsApp duplicado: se omite el procesamiento.');
         continue;
       }
-      await handleInboundMessage({
-        channel: 'whatsapp',
-        externalId: msg.from,
-        text: msg.text,
-        name: msg.name,
-        messageId: msg.messageId,
-      });
+      // try/catch POR MENSAJE: si uno falla, los demas del lote deben seguir
+      // procesandose (antes una sola excepcion abortaba el batch entero).
+      try {
+        await handleInboundMessage({
+          channel: 'whatsapp',
+          externalId: msg.from,
+          text: msg.text,
+          name: msg.name,
+          messageId: msg.messageId,
+          isMedia: msg.isMedia,
+        });
+      } catch (err) {
+        if (msg.messageId) forgetWhatsAppMessage(msg.messageId);
+        app.log.error({ err, from: msg.from, messageId: msg.messageId }, 'Error procesando mensaje de WhatsApp');
+        if (process.env.SENTRY_DSN) Sentry.captureException(err);
+      }
     }
   } catch (err) {
     app.log.error({ err }, 'Error procesando webhook de WhatsApp');
+    if (process.env.SENTRY_DSN) Sentry.captureException(err);
   }
 });
 

@@ -18,15 +18,30 @@ function isQuietHour(d: Date): boolean {
   return h >= QUIET_START || h < QUIET_END;
 }
 
-/** Devuelve la fecha del proximo horario habil (hoy 9am o manana 9am). */
+/**
+ * Devuelve la fecha del proximo horario habil (hoy 9am o manana 9am), con un
+ * desfase aleatorio de hasta 90 minutos.
+ *
+ * Sin ese jitter todos los pospuestos salian a las 09:00:00.000 exactas: una
+ * rafaga identica cada manana, que es justo el patron que los antispam de Meta
+ * detectan y que hunde el quality rating del numero.
+ */
+const JITTER_MAX_MS = 90 * 60 * 1000;
+
 function nextBusinessTime(from: Date): Date {
   const d = new Date(from);
   if (d.getHours() >= QUIET_START) {
     d.setDate(d.getDate() + 1);
   }
   d.setHours(QUIET_END, 0, 0, 0);
-  return d;
+  return new Date(d.getTime() + Math.floor(Math.random() * JITTER_MAX_MS));
 }
+
+/**
+ * Etapas en las que perseguir con una secuencia automatica es contraproducente:
+ * el cliente ya esta en manos del vendedor, ya compro o ya dijo que no.
+ */
+const STOP_STAGES = new Set(['qualified', 'negotiating', 'customer', 'lost']);
 
 interface SequenceRow {
   id: string;
@@ -128,13 +143,43 @@ async function processOneEnrollment(enr: {
 
   const { data: contact } = await db
     .from('contacts')
-    .select('id, display_name, marketing_opted_out, interested_product_id')
+    .select('id, display_name, marketing_opted_out, interested_product_id, stage')
     .eq('id', enr.contact_id)
     .single();
 
   // Si se dio de baja, detener.
   if (!contact || contact.marketing_opted_out) {
     await db.from('sequence_enrollments').update({ status: 'stopped' }).eq('id', enr.id);
+    return false;
+  }
+
+  // Parada comercial: el contacto avanzó por su cuenta desde que se inscribió.
+  // Seguir mandándole "¿sigues interesado?" a quien está negociando con un
+  // vendedor —o que ya compró— resta credibilidad y molesta.
+  if (STOP_STAGES.has(contact.stage)) {
+    await db
+      .from('sequence_enrollments')
+      .update({ status: 'stopped', completed_at: new Date().toISOString() })
+      .eq('id', enr.id);
+    await db.from('events').insert({
+      contact_id: enr.contact_id,
+      type: 'sequence_stopped_by_stage',
+      payload: { sequence_id: enr.sequence_id, stage: contact.stage },
+    });
+    return false;
+  }
+
+  // Un pedido confirmado detiene igualmente el seguimiento comercial.
+  const { count: confirmedOrders } = await db
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('contact_id', enr.contact_id)
+    .in('status', ['confirmed', 'shipped', 'delivered']);
+  if (confirmedOrders && confirmedOrders > 0) {
+    await db
+      .from('sequence_enrollments')
+      .update({ status: 'stopped', completed_at: new Date().toISOString() })
+      .eq('id', enr.id);
     return false;
   }
 
@@ -167,9 +212,19 @@ async function processOneEnrollment(enr: {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    const since = lastOut?.created_at ?? new Date(0).toISOString();
-    if (await hasInboundSince(enr.contact_id, since)) {
-      await db.from('sequence_enrollments').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', enr.id);
+    // Sin outbound previo NO hay nada "sin respuesta" que evaluar: la condicion
+    // es neutra y el paso 1 se envia. Antes se usaba 1970 como referencia, con
+    // lo que el propio mensaje que creo el lead contaba como "ya respondio" y
+    // la secuencia se cerraba sola sin enviar un solo mensaje.
+    if (lastOut?.created_at && (await hasInboundSince(enr.contact_id, lastOut.created_at))) {
+      // El cliente respondio: objetivo logrado. 'stopped' (no 'completed') para
+      // distinguirlo de una secuencia agotada al mirar los numeros.
+      await db.from('sequence_enrollments').update({ status: 'stopped', completed_at: new Date().toISOString() }).eq('id', enr.id);
+      await db.from('events').insert({
+        contact_id: enr.contact_id,
+        type: 'sequence_goal_reached',
+        payload: { sequence_id: enr.sequence_id, step_order: targetOrder },
+      });
       return false;
     }
   }
@@ -187,8 +242,15 @@ async function processOneEnrollment(enr: {
   const channel: Channel = (seq?.channel as Channel) ?? 'whatsapp';
   const to = await getChannelIdentity(enr.contact_id, channel);
   if (!to) {
-    // No tenemos como contactarlo por ese canal: completar para no reintentar siempre.
+    // No tenemos como contactarlo por ese canal: completar para no reintentar
+    // siempre. Se deja evento porque si no, el contacto desaparece del
+    // seguimiento en silencio (tipico del lead web sin identidad de WhatsApp).
     await db.from('sequence_enrollments').update({ status: 'completed', completed_at: now.toISOString() }).eq('id', enr.id);
+    await db.from('events').insert({
+      contact_id: enr.contact_id,
+      type: 'sequence_unreachable',
+      payload: { sequence_id: enr.sequence_id, channel, step_order: targetOrder },
+    });
     return false;
   }
 

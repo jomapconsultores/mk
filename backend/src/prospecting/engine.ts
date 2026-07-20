@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { writeOutreachMessage } from './writer.js';
 import { sendEmail } from '../channels/email.js';
 import { sendWhatsAppText } from '../channels/whatsapp.js';
+import { config } from '../config.js';
 
 /**
  * Motor de prospección activa.
@@ -237,10 +238,22 @@ async function processOneEnrollment(enrollment: Record<string, unknown>): Promis
   return true;
 }
 
+/**
+ * ¿Se le puede escribir por WhatsApp a este prospecto? Solo si ya nos escribió
+ * él (responded_at): a partir de ahí hay ventana de servicio de 24 h y una
+ * conversación real. En frío queda prohibido salvo que se active
+ * ALLOW_COLD_WHATSAPP a conciencia. Ver config.allowColdWhatsApp.
+ */
+function canUseWhatsApp(prospect: Record<string, unknown>): boolean {
+  if (!prospect.phone) return false;
+  if (prospect.responded_at) return true;
+  return config.allowColdWhatsApp;
+}
+
 function pickChannel(prospect: Record<string, unknown>, order: string[]): string | null {
   for (const ch of order) {
     if (ch === 'email'    && prospect.email)  return 'email';
-    if (ch === 'whatsapp' && prospect.phone)  return 'whatsapp';
+    if (ch === 'whatsapp' && canUseWhatsApp(prospect)) return 'whatsapp';
   }
   return null;
 }
@@ -253,7 +266,15 @@ async function sendViaChannel(
 ): Promise<void> {
   if (channel === 'email' && prospect.email) {
     await sendEmail({ to: prospect.email as string, subject: subject ?? 'Hola', text: body });
-  } else if (channel === 'whatsapp' && prospect.phone) {
+  } else if (channel === 'whatsapp') {
+    // Guarda final: aunque una campaña vieja traiga 'whatsapp' en channel_order
+    // o alguien llame a esta función directamente, en frío no sale nada.
+    if (!canUseWhatsApp(prospect)) {
+      throw new Error(
+        `WhatsApp en frío bloqueado para el prospecto ${prospect.id}: no ha respondido nunca. ` +
+        'Usa email como primer toque (ver config.allowColdWhatsApp).',
+      );
+    }
     await sendWhatsAppText(prospect.phone as string, body);
   }
 }

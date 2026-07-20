@@ -73,24 +73,82 @@ export async function findOrCreateContact(opts: {
   return contact as Contact;
 }
 
+/**
+ * Garantiza que el contacto tenga identidad en un canal (idempotente).
+ *
+ * Necesario para el lead web: llega con identidad 'web', pero las secuencias y
+ * los envíos salen por 'whatsapp'/'email'. Sin esto, getChannelIdentity devuelve
+ * null y el seguimiento se cierra sin haber escrito nunca.
+ */
+export async function ensureChannelIdentity(opts: {
+  contactId: string;
+  channel: Channel;
+  externalId: string;
+  handle?: string | null;
+  consentSource?: string;
+}): Promise<void> {
+  const { data: existing } = await db
+    .from('channel_identities')
+    .select('id')
+    .eq('channel', opts.channel)
+    .eq('external_id', opts.externalId)
+    .maybeSingle();
+  if (existing?.id) return;
+
+  const { error } = await db.from('channel_identities').insert({
+    contact_id: opts.contactId,
+    channel: opts.channel,
+    external_id: opts.externalId,
+    handle: opts.handle ?? null,
+  });
+  // Carrera con otro proceso que la creó entremedias: no es un fallo.
+  if (error && !String(error.message).toLowerCase().includes('duplicate')) {
+    console.error('[ensureChannelIdentity] no se pudo crear la identidad:', error.message);
+    return;
+  }
+
+  await db.from('consents').upsert(
+    {
+      contact_id: opts.contactId,
+      channel: opts.channel,
+      status: 'opted_in',
+      source: opts.consentSource ?? 'web_form',
+    },
+    { onConflict: 'contact_id,channel' },
+  );
+}
+
 /** Devuelve la conversacion abierta del contacto en un canal, o la crea. */
 export async function getOrCreateConversation(contactId: string, channel: Channel): Promise<string> {
+  return (await getOrCreateConversationFull(contactId, channel)).id;
+}
+
+/**
+ * Igual que getOrCreateConversation pero devuelve tambien ai_autopilot, que es
+ * el interruptor "responde la IA sola en este hilo". Existia en la base y en el
+ * panel, pero el backend nunca lo leia: el asesor lo apagaba y el bot seguia
+ * contestando encima de la negociacion.
+ */
+export async function getOrCreateConversationFull(
+  contactId: string,
+  channel: Channel,
+): Promise<{ id: string; aiAutopilot: boolean }> {
   const { data: existing } = await db
     .from('conversations')
-    .select('id')
+    .select('id, ai_autopilot')
     .eq('contact_id', contactId)
     .eq('channel', channel)
     .eq('status', 'open')
     .maybeSingle();
-  if (existing?.id) return existing.id;
+  if (existing?.id) return { id: existing.id, aiAutopilot: existing.ai_autopilot !== false };
 
   const { data, error } = await db
     .from('conversations')
     .insert({ contact_id: contactId, channel })
-    .select('id')
+    .select('id, ai_autopilot')
     .single();
   if (error) throw error;
-  return data!.id;
+  return { id: data!.id, aiAutopilot: data!.ai_autopilot !== false };
 }
 
 /** Guarda un mensaje (entrante o saliente). */
@@ -127,24 +185,53 @@ export async function saveMessage(opts: {
   await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', opts.conversationId);
 }
 
-/** Aplica la clasificacion de la IA al contacto. */
+const STAGES = ['new', 'engaged', 'qualified', 'negotiating', 'customer', 'lost'] as const;
+const INTEREST_LEVELS = ['low', 'medium', 'high'] as const;
+// Etapas que la IA no puede revertir sola: un cliente que ya compro o que ya
+// esta negociando no vuelve a 'new' porque escribio "ok" o porque el LLM fallo.
+// Misma guarda que ya aplica la ruta manual de rescore.ts.
+const TERMINAL_STAGES = new Set(['customer', 'negotiating', 'lost']);
+
+/**
+ * Aplica la clasificacion de la IA al contacto — de forma NO destructiva:
+ * valida los enums, no degrada etapas avanzadas y no borra el resumen previo
+ * con una cadena vacia. Un valor inventado por el LLM se descarta en vez de
+ * fallar en silencio contra el CHECK de la tabla.
+ */
 export async function applyClassification(contactId: string, c: {
   stage: string; interest_level: string; lead_score: number; summary: string;
 }): Promise<void> {
-  await db
+  const { data: current } = await db
     .from('contacts')
-    .update({
-      stage: c.stage,
-      interest_level: c.interest_level,
-      lead_score: c.lead_score,
-      ai_summary: c.summary,
-    })
-    .eq('id', contactId);
+    .select('stage, ai_summary')
+    .eq('id', contactId)
+    .maybeSingle();
+
+  const patch: Record<string, unknown> = {};
+
+  if ((STAGES as readonly string[]).includes(c.stage) && !TERMINAL_STAGES.has(current?.stage ?? '')) {
+    patch.stage = c.stage;
+  }
+  if ((INTEREST_LEVELS as readonly string[]).includes(c.interest_level)) {
+    patch.interest_level = c.interest_level;
+  }
+  if (Number.isFinite(c.lead_score)) {
+    patch.lead_score = Math.max(0, Math.min(100, Math.round(c.lead_score)));
+  }
+  if (c.summary?.trim()) patch.ai_summary = c.summary.trim();
+
+  if (Object.keys(patch).length) {
+    const { error } = await db.from('contacts').update(patch).eq('id', contactId);
+    if (error) {
+      console.error('[applyClassification] update fallo:', error.message, { contactId, patch });
+      return;
+    }
+  }
 
   await db.from('events').insert({
     contact_id: contactId,
     type: 'classified',
-    payload: c,
+    payload: { ...c, applied: patch, previous_stage: current?.stage ?? null },
   });
 }
 

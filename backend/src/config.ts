@@ -57,4 +57,11 @@ export const config = {
   // Secreto compartido con el proxy server-side del dashboard (/api/backend/*)
   // para los endpoints que cuestan dinero (IA, Twilio) o exponen el CRM.
   internalApiSecret: process.env.INTERNAL_API_SECRET ?? '',
+
+  // Enviar WhatsApp como PRIMER contacto a quien nunca escribió es texto libre
+  // fuera de la ventana de 24 h y sin opt-in: o no se entrega, o los reportes
+  // hunden el quality rating y Meta restringe el número — el mismo número que
+  // atiende todo el inbound del CRM. Por eso está prohibido por defecto; el
+  // outreach en frío sale por email, y WhatsApp solo tras respuesta del prospecto.
+  allowColdWhatsApp: process.env.ALLOW_COLD_WHATSAPP === 'true',
 };

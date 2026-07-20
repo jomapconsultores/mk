@@ -34,17 +34,28 @@ const OPENAI_COMPAT: Record<string, { baseUrl: string; apiKey: string }> = {
   deepseek:  { baseUrl: 'https://api.deepseek.com/v1', apiKey: config.deepseek.apiKey },
 };
 
+// Sin timeout, un proveedor que acepta la conexion y no responde deja el await
+// colgado para siempre: la cadena de fallback nunca llega a activarse y el
+// mensaje del cliente se pierde (a Meta ya se le respondio 200).
+const PROVIDER_TIMEOUT_MS = 8_000;
+
+// Tareas que exigen JSON: temperatura 0 para que el mismo texto de siempre la
+// misma clasificacion (el lead_score ordena la cola del vendedor).
+const JSON_TASKS: TaskType[] = ['classify'];
+
 async function callOpenAICompat(
   provider: Provider,
   system: string,
   user: string,
   maxTokens: number,
+  jsonMode: boolean,
 ): Promise<string> {
   const { baseUrl, apiKey } = OPENAI_COMPAT[provider];
   if (!apiKey) throw new Error(`Sin API key para ${provider}`);
 
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -52,6 +63,7 @@ async function callOpenAICompat(
     body: JSON.stringify({
       model: MODELS[provider],
       max_tokens: maxTokens,
+      ...(jsonMode ? { temperature: 0, response_format: { type: 'json_object' } } : {}),
       messages: [
         { role: 'system', content: system },
         { role: 'user',   content: user },
@@ -72,12 +84,22 @@ async function callOpenAICompat(
   return text;
 }
 
-const _anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
+const _anthropic = new Anthropic({
+  apiKey: config.anthropic.apiKey,
+  timeout: PROVIDER_TIMEOUT_MS,
+  maxRetries: 1,
+});
 
-async function callClaude(system: string, user: string, maxTokens: number): Promise<string> {
+async function callClaude(
+  system: string,
+  user: string,
+  maxTokens: number,
+  jsonMode: boolean,
+): Promise<string> {
   const res = await _anthropic.messages.create({
     model: MODELS.claude,
     max_tokens: maxTokens,
+    ...(jsonMode ? { temperature: 0 } : {}),
     system,
     messages: [{ role: 'user', content: user }],
   });
@@ -101,14 +123,15 @@ export async function llm(
   maxTokens: number,
 ): Promise<string> {
   const chain = CHAIN[task];
+  const jsonMode = JSON_TASKS.includes(task);
   let lastErr: unknown;
 
   for (const provider of chain) {
     try {
       const text =
         provider === 'claude'
-          ? await callClaude(system, user, maxTokens)
-          : await callOpenAICompat(provider, system, user, maxTokens);
+          ? await callClaude(system, user, maxTokens, jsonMode)
+          : await callOpenAICompat(provider, system, user, maxTokens, jsonMode);
 
       if (provider !== chain[0]) {
         console.warn(`[llm:${task}] fallback activo → ${provider} (${MODELS[provider]})`);
